@@ -82,18 +82,6 @@ model Site {
   deletedAt DateTime?
 }
 
-model Site {
-  id        String   @id @default(uuid())
-  name      String
-
-  userId    Int      @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-}
-
 model Category {
   id        String   @id @default(uuid())
   name      String
@@ -155,6 +143,9 @@ model Task {
 
   userId      Int      @map("user_id")
   user        User     @relation(fields: [userId], references: [id])
+
+  incidentId  Int      @map("incident_id")
+  incident    Incident @relation(fields: [incidentId], references: [id])
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
