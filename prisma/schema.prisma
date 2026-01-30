@@ -151,3 +151,55 @@ model Task {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 }
+
+
+model Attachment {
+  id         String    @id @default(uuid())
+  fileName   String
+  url        String
+
+  incidentId Int    @map("incident_id")
+  incident   Incident  @relation(fields: [incidentId], references: [id])
+
+  uploadedAt DateTime  @default(now())
+
+  @@index([incidentId])
+}
+
+
+model Incident {
+  id            String          @id @default(uuid())
+  title         String
+  description   String?
+  status        IncidentStatus  @default(OPEN)
+
+  // Créateur de l'incident
+  userId        Int             @map("user_id")
+  user          User            @relation("IncidentCreator", fields: [userId], references: [id])
+
+  // Rapporteur (peut être différent du créateur)
+  reporterId    Int             @map("reporter_id")
+  reporter      User            @relation("IncidentReporter", fields: [reporterId], references: [id])
+
+  // Relations métier
+  subProcessId  Int          @map("sub_process_id")
+  subProcess    SubProcess      @relation(fields: [subProcessId], references: [id])
+
+  subCategoryId Int          @map("sub_category_id")
+  subCategory   SubCategory     @relation(fields: [subCategoryId], references: [id])
+
+  // Relations
+  tasks         Task[]
+  sites         Site[]          @relation("IncidentSites")
+  assignedUsers User[]          @relation("IncidentAssignedUsers")
+  attachments   Attachment[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  @@index([userId])
+  @@index([reporterId])
+  @@index([subProcessId])
+  @@index([subCategoryId])
+}
