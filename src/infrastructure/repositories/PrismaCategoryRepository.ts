@@ -1,11 +1,27 @@
 import { ICategoryRepository } from '../../domain/repositories/ICategoryRepository';
-import { Category } from '../../domain/entities/Category';
+import { Category, CreateCategoryDTO } from '../../domain/entities/Category';
 import prisma from '../database/prisma';
 
 export class PrismaCategoryRepository implements ICategoryRepository {
-  async create(data: Pick<Category, 'name'>): Promise<Category> {
-    const category = await prisma.category.create({ data });
-    return category as unknown as Category;
+
+
+  // async create(data: Pick<Category, 'name'>): Promise<Category> {
+  //   const category = await prisma.category.create({ data });
+  //   return category as unknown as Category;
+  // }
+
+    async create(data: CreateCategoryDTO): Promise<Category> {
+    return prisma.category.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        user: {
+          connect: {
+            id: data.userId,
+          },
+        },
+      },
+    });
   }
 
   async findById(id: string): Promise<Category | null> {

@@ -78,6 +78,14 @@ export const requirePermission = (permission: string) => {
     const user = (req as any).user;
     if (!user) return (res as any).status(401).json({ message: 'Unauthorized' });
 
+    // ✅ SUPER ADMIN via .env (temporaire)
+    if (
+      process.env.SUPER_ADMIN_USERNAME &&
+      user.username === process.env.SUPER_ADMIN_USERNAME
+    ) {
+      return next();
+    }
+    
     if (!user.permissions.includes(permission)) {
       return (res as any).status(403).json({ message: `Forbidden: Missing permission ${permission}` });
     }

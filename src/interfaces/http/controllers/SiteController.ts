@@ -11,18 +11,27 @@ import { z } from 'zod';
 import { NotFoundError } from '../../../domain/errors/AppError';
 
 const createSiteSchema = z.object({
-  name: z.string().min(2),
-  typeId: z.string().uuid()
+  name: z.string().min(2)
 });
 
 export class SiteController {
+  
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = createSiteSchema.parse((req as any).body);
+      const data = createSiteSchema.parse(req.body);
+
+      // ✅ user injecté par middleware JWT
+      const userId = (req as any).user.id;
+
       const repo = new PrismaSiteRepository();
       const useCase = new CreateSiteUseCase(repo);
-      const site = await useCase.execute(data);
-      return (res as any).status(201).json(site);
+
+      const site = await useCase.execute({
+        name: data.name,
+        userId,
+      });
+
+      return res.status(201).json(site);
     } catch (error) {
       next(error);
     }
@@ -39,7 +48,8 @@ export class SiteController {
         const sites = await useCase.execute(skip, size);
         return (res as any).json(sites);
     } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
     }
   }
 
@@ -51,7 +61,8 @@ export class SiteController {
         if (!site) throw new NotFoundError('Site not found');
         return (res as any).json(site);
     } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
     }
   }
 
@@ -63,7 +74,8 @@ export class SiteController {
         const site = await useCase.execute((req as any).params.id, data);
         return (res as any).json(site);
       } catch (error) {
-          next(error);
+          // Fix: Type 'NextFunction' has no call signatures.
+          (next as any)(error);
       }
   }
 
@@ -74,7 +86,8 @@ export class SiteController {
         await useCase.execute((req as any).params.id);
         return (res as any).status(204).send();
       } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
       }
   }
 }

@@ -15,6 +15,7 @@ model User {
   createdAt      DateTime @default(now())
 
   roles          UserRole[]
+  sites           Site[]
   refreshTokens  RefreshToken[]   // OBLIGATOIRE
 }
 
@@ -65,4 +66,28 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Site {
+  id        String   @id @default(uuid())
+  name      String
+
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model Site {
+  id        String   @id @default(uuid())
+  name      String
+
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 }
