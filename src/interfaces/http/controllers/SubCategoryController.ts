@@ -1,25 +1,27 @@
 import { Request, Response } from 'express';
-import { PrismaCategoryRepository } from '../../../infrastructure/repositories/PrismaCategoryRepository';
+import { PrismaSubCategoryRepository } from '../../../infrastructure/repositories/PrismaSubCategoryRepository';
 import { 
-    CreateCategoryUseCase, 
-    GetAllCategoriesUseCase, 
-    GetCategoryByIdUseCase, 
-    UpdateCategoryUseCase, 
-    DeleteCategoryUseCase 
-} from '../../../application/usecases/CategoryUseCases';
+    CreateSubCategoryUseCase, 
+    GetAllSubCategoriesUseCase, 
+    GetSubCategoryByIdUseCase, 
+    UpdateSubCategoryUseCase, 
+    DeleteSubCategoryUseCase 
+} from '../../../application/usecases/SubCategoryUseCases';
 import { z } from 'zod';
 
-const categorySchema = z.object({
-    name: z.string().min(1)
+const subCategorySchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    categoryId: z.string().uuid()
 });
 
-export class CategoryController {
+export class SubCategoryController {
     static async create(req: Request, res: Response) {
         try {
-            const data = categorySchema.parse((req as any).body);
+            const data = subCategorySchema.parse((req as any).body);
             const userId = (req as any).user.id;
-            const repo = new PrismaCategoryRepository();
-            const useCase = new CreateCategoryUseCase(repo);
+            const repo = new PrismaSubCategoryRepository();
+            const useCase = new CreateSubCategoryUseCase(repo);
             const result = await useCase.execute({ ...data, userId });
             return (res as any).status(201).json(result);
         } catch (error: any) {
@@ -28,15 +30,15 @@ export class CategoryController {
     }
 
     static async getAll(req: Request, res: Response) {
-        const repo = new PrismaCategoryRepository();
-        const useCase = new GetAllCategoriesUseCase(repo);
+        const repo = new PrismaSubCategoryRepository();
+        const useCase = new GetAllSubCategoriesUseCase(repo);
         const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
         return (res as any).json(result);
     }
 
     static async getById(req: Request, res: Response) {
-        const repo = new PrismaCategoryRepository();
-        const useCase = new GetCategoryByIdUseCase(repo);
+        const repo = new PrismaSubCategoryRepository();
+        const useCase = new GetSubCategoryByIdUseCase(repo);
         const result = await useCase.execute((req as any).params.id);
         if (!result) return (res as any).status(404).json({ message: 'Not found' });
         return (res as any).json(result);
@@ -44,9 +46,9 @@ export class CategoryController {
 
     static async update(req: Request, res: Response) {
         try {
-            const data = categorySchema.partial().parse((req as any).body);
-            const repo = new PrismaCategoryRepository();
-            const useCase = new UpdateCategoryUseCase(repo);
+            const data = subCategorySchema.partial().parse((req as any).body);
+            const repo = new PrismaSubCategoryRepository();
+            const useCase = new UpdateSubCategoryUseCase(repo);
             const result = await useCase.execute((req as any).params.id, data);
             return (res as any).json(result);
         } catch (error: any) {
@@ -55,8 +57,8 @@ export class CategoryController {
     }
 
     static async delete(req: Request, res: Response) {
-        const repo = new PrismaCategoryRepository();
-        const useCase = new DeleteCategoryUseCase(repo);
+        const repo = new PrismaSubCategoryRepository();
+        const useCase = new DeleteSubCategoryUseCase(repo);
         await useCase.execute((req as any).params.id);
         return (res as any).status(204).send();
     }

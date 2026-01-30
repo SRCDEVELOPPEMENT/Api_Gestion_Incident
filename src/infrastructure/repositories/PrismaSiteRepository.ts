@@ -1,22 +1,16 @@
 import { ISiteRepository } from '../../domain/repositories/ISiteRepository';
 import { Site, CreateSiteDTO } from '../../domain/entities/Site';
 import prisma from '../database/prisma';
-// import { PrismaClient } from '@prisma/client';
-// const prisma = new PrismaClient();
 
 export class PrismaSiteRepository implements ISiteRepository {
-  
   async create(data: CreateSiteDTO): Promise<Site> {
-    return prisma.site.create({
+    const site = await prisma.site.create({
       data: {
         name: data.name,
-        user: {
-          connect: {
-            id: data.userId,
-          },
-        },
-      },
+        userId: data.userId
+      }
     });
+    return site as unknown as Site;
   }
 
   async findAll(skip: number = 0, take: number = 20): Promise<Site[]> {

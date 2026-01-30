@@ -15,25 +15,17 @@ const createSiteSchema = z.object({
 });
 
 export class SiteController {
-  
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = createSiteSchema.parse(req.body);
-
-      // ✅ user injecté par middleware JWT
+      const data = createSiteSchema.parse((req as any).body);
       const userId = (req as any).user.id;
-
       const repo = new PrismaSiteRepository();
       const useCase = new CreateSiteUseCase(repo);
-
-      const site = await useCase.execute({
-        name: data.name,
-        userId,
-      });
-
-      return res.status(201).json(site);
+      const site = await useCase.execute({ ...data, userId });
+      return (res as any).status(201).json(site);
     } catch (error) {
-      next(error);
+      // Fix: Type 'NextFunction' has no call signatures.
+      (next as any)(error);
     }
   }
 

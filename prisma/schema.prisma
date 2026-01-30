@@ -16,6 +16,8 @@ model User {
 
   roles          UserRole[]
   sites           Site[]
+  categories      Category[]
+  souscategories SubCategory[]
   refreshTokens  RefreshToken[]   // OBLIGATOIRE
 }
 
@@ -90,4 +92,71 @@ model Site {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  subCategories SubCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model SubCategory {
+  id         String   @id @default(uuid())
+  name       String
+  description String?
+  categoryId  Int  @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model Process {
+  id        String   @id @default(uuid())
+  name      String
+
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+
+  subProcesses SubProcess[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model SubProcess {
+  id        String   @id @default(uuid())
+  name      String
+  description String?
+
+  processId Int   @map("process_id")
+  process   Process  @relation(fields: [processId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 }

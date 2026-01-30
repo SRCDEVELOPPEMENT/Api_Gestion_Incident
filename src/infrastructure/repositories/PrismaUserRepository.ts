@@ -49,9 +49,13 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: { 
+    // Changed to findFirst to support soft delete filtering
+    const user = await prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null
+      },
+      include: {
         roles: {
             include: {
                 role: {
@@ -64,7 +68,7 @@ export class PrismaUserRepository implements IUserRepository {
                     }
                 }
             }
-        } 
+        }
       }
     });
 
@@ -85,7 +89,8 @@ export class PrismaUserRepository implements IUserRepository {
     const users = await prisma.user.findMany({
       skip,
       take,
-      include: { 
+      where: { deletedAt: null },
+      include: {
           roles: {
               include: { role: true }
           }
@@ -97,6 +102,7 @@ export class PrismaUserRepository implements IUserRepository {
         roles: u.roles.map((ur: any) => ur.role)
     })) as unknown as User[];
   }
+
 
   async update(id: string, data: Partial<User>): Promise<User> {
     const updated = await prisma.user.update({
@@ -110,6 +116,10 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await prisma.user.delete({ where: { id } });
+    // Soft delete implementation
+    await prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
   }
 }

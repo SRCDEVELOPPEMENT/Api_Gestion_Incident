@@ -1,17 +1,12 @@
 export interface SubCategory {
   id: string;
   name: string;
+  description?: string | null;
   categoryId: string;
-}
-
-export interface Category {
-  id: string;
-  name: string;
   userId: string;
-  subCategories?: SubCategory[];
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
 }
 
-export type CreateCategoryDTO = Pick<Category, 'name' | 'userId'>;
+export type CreateSubCategoryDTO = Pick<SubCategory, 'name' | 'description' | 'categoryId' | 'userId'>;

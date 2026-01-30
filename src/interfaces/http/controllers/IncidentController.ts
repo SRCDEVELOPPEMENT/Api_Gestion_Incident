@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { 
     CreateIncidentUseCase, 
     GetAllIncidentsUseCase, 
-    GetIncidentByIdUseCase,
-    UpdateIncidentUseCase,
+    GetIncidentByIdUseCase, 
+    UpdateIncidentUseCase, 
     DeleteIncidentUseCase
 } from '../../../application/usecases/IncidentUseCases';
 import { PrismaIncidentRepository } from '../../../infrastructure/repositories/PrismaIncidentRepository';
@@ -27,15 +27,18 @@ export class IncidentController {
       const repo = new PrismaIncidentRepository();
       const useCase = new CreateIncidentUseCase(repo);
       const reporterId = (req as any).user.id;
+      const userId = (req as any).user.id;
 
       const incident = await useCase.execute({
           ...validatedData,
-          reporterId
+          reporterId,
+          userId
       });
 
       return (res as any).status(201).json(incident);
     } catch (error) {
-      next(error);
+      // Fix: Type 'NextFunction' has no call signatures.
+      (next as any)(error);
     }
   }
 
@@ -56,7 +59,8 @@ export class IncidentController {
         const incidents = await useCase.execute({ page, size, filters, sortBy, sortOrder });
         return (res as any).json(incidents);
       } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
       }
   }
 
@@ -68,7 +72,8 @@ export class IncidentController {
         if (!incident) throw new NotFoundError('Incident not found');
         return (res as any).json(incident);
       } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
       }
   }
 
@@ -80,7 +85,8 @@ export class IncidentController {
           const incident = await useCase.execute((req as any).params.id, validatedData);
           return (res as any).json(incident);
       } catch (error) {
-          next(error);
+          // Fix: Type 'NextFunction' has no call signatures.
+          (next as any)(error);
       }
   }
 
@@ -91,7 +97,8 @@ export class IncidentController {
         await useCase.execute((req as any).params.id);
         return (res as any).status(204).send();
       } catch (error) {
-        next(error);
+        // Fix: Type 'NextFunction' has no call signatures.
+        (next as any)(error);
       }
   }
 }
