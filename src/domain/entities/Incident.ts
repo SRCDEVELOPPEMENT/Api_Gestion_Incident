@@ -25,7 +25,6 @@ export interface Incident {
 export type CreateIncidentDTO = {
   title: string;
   description?: string | null;
-  userId: string; // Creator
   subProcessId: string;
   subCategoryId: string;
   siteIds: string[];
@@ -33,4 +32,5 @@ export type CreateIncidentDTO = {
   attachments?: CreateAttachmentDTO[];
 };
 
-export type UpdateIncidentDTO = Partial<Omit<CreateIncidentDTO, 'userId'>>;
+export type UpdateIncidentDTO =
+  Partial<Omit<CreateIncidentDTO, 'siteIds'>>;

@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//////////////////////
+// AUTH / SECURITY //
+//////////////////////
+
 model User {
   id             Int      @id @default(autoincrement())
   username       String   @unique
@@ -15,10 +19,16 @@ model User {
   createdAt      DateTime @default(now())
 
   roles          UserRole[]
-  sites           Site[]
-  categories      Category[]
-  souscategories SubCategory[]
-  refreshTokens  RefreshToken[]   // OBLIGATOIRE
+  refreshTokens  RefreshToken[]
+
+  sites          Site[]
+  categories     Category[]
+  processes      Process[]
+  tasks          Task[]
+
+  createdIncidents  Incident[] @relation("IncidentCreator")
+  reportedIncidents Incident[] @relation("IncidentReporter")
+  assignedIncidents Incident[] @relation("IncidentAssignedUsers")
 }
 
 model Role {
@@ -40,8 +50,8 @@ model UserRole {
   userId Int
   roleId Int
 
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([userId, roleId])
 }
@@ -50,32 +60,37 @@ model RolePermission {
   roleId       Int
   permissionId Int
 
-  role       Role       @relation(fields: [roleId], references: [id])
-  permission Permission @relation(fields: [permissionId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([roleId, permissionId])
 }
 
 model RefreshToken {
-  id               Int      @id @default(autoincrement())
-  tokenHash String @db.VarChar(255) @unique
-  userId           Int
-  expiresAt        DateTime
-  revoked          Boolean  @default(false)
-  replacedByToken  String?
-  createdAt        DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
 }
+
+//////////////
+// DOMAIN  //
+//////////////
 
 model Site {
   id        String   @id @default(uuid())
   name      String
 
-  userId    Int      @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  incidents Incident[] @relation("IncidentSites")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,8 +101,8 @@ model Category {
   id        String   @id @default(uuid())
   name      String
 
-  userId    Int      @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   subCategories SubCategory[]
 
@@ -97,24 +112,28 @@ model Category {
 }
 
 model SubCategory {
-  id         String   @id @default(uuid())
-  name       String
+  id          String   @id @default(uuid())
+  name        String
   description String?
-  categoryId  Int  @map("category_id")
-  category   Category @relation(fields: [categoryId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  incidents Incident[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+
+  @@index([categoryId])
 }
 
 model Process {
   id        String   @id @default(uuid())
   name      String
 
-  userId    Int      @map("user_id")
-  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   subProcesses SubProcess[]
 
@@ -124,16 +143,53 @@ model Process {
 }
 
 model SubProcess {
-  id        String   @id @default(uuid())
-  name      String
+  id          String   @id @default(uuid())
+  name        String
   description String?
 
-  processId Int   @map("process_id")
-  process   Process  @relation(fields: [processId], references: [id])
+  processId   String
+  process     Process @relation(fields: [processId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  incidents Incident[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+
+  @@index([processId])
+}
+
+model Incident {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  status        String   @default("OPEN")
+
+  userId        Int
+  user          User @relation("IncidentCreator", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  reporterId    Int
+  reporter      User @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  subProcessId  String
+  subProcess    SubProcess @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  subCategoryId String
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  tasks         Task[]
+  sites         Site[]   @relation("IncidentSites")
+  assignedUsers User[]   @relation("IncidentAssignedUsers")
+  attachments   Attachment[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  @@index([userId])
+  @@index([reporterId])
+  @@index([subProcessId])
+  @@index([subCategoryId])
 }
 
 model Task {
@@ -141,65 +197,35 @@ model Task {
   name        String
   description String?
 
-  userId      Int      @map("user_id")
-  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  user        User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  incidentId  Int      @map("incident_id")
-  incident    Incident @relation(fields: [incidentId], references: [id])
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  attachments Attachment[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
-}
 
-
-model Attachment {
-  id         String    @id @default(uuid())
-  fileName   String
-  url        String
-
-  incidentId Int    @map("incident_id")
-  incident   Incident  @relation(fields: [incidentId], references: [id])
-
-  uploadedAt DateTime  @default(now())
-
+  @@index([userId])
   @@index([incidentId])
 }
 
+model Attachment {
+  id         String   @id @default(uuid())
+  fileName   String
+  url        String
 
-model Incident {
-  id            String          @id @default(uuid())
-  title         String
-  description   String?
-  status        IncidentStatus  @default(OPEN)
+  incidentId String?
+  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Créateur de l'incident
-  userId        Int             @map("user_id")
-  user          User            @relation("IncidentCreator", fields: [userId], references: [id])
+  taskId     String?
+  task       Task? @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Rapporteur (peut être différent du créateur)
-  reporterId    Int             @map("reporter_id")
-  reporter      User            @relation("IncidentReporter", fields: [reporterId], references: [id])
+  uploadedAt DateTime @default(now())
 
-  // Relations métier
-  subProcessId  Int          @map("sub_process_id")
-  subProcess    SubProcess      @relation(fields: [subProcessId], references: [id])
-
-  subCategoryId Int          @map("sub_category_id")
-  subCategory   SubCategory     @relation(fields: [subCategoryId], references: [id])
-
-  // Relations
-  tasks         Task[]
-  sites         Site[]          @relation("IncidentSites")
-  assignedUsers User[]          @relation("IncidentAssignedUsers")
-  attachments   Attachment[]
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  deletedAt     DateTime?
-
-  @@index([userId])
-  @@index([reporterId])
-  @@index([subProcessId])
-  @@index([subCategoryId])
+  @@index([incidentId])
+  @@index([taskId])
 }

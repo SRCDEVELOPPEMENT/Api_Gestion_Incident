@@ -3,6 +3,7 @@ export interface Attachment {
   fileName: string;
   url: string;
   incidentId: string;
+  taskId?: string;
   uploadedAt: Date;
 }
 

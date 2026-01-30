@@ -17,11 +17,14 @@ import { correlationMiddleware } from './interfaces/http/middlewares/correlation
 import { requestLogger, auditLogger } from './interfaces/http/middlewares/loggingMiddleware';
 import { globalLimiter } from './interfaces/http/middlewares/securityMiddleware';
 import { HealthController } from './interfaces/http/controllers/HealthController';
+import { bootstrapAdmin } from './bootstrap/admin.bootstrap'; // ✅ AJOUT
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
+
+/* tout ton code middleware et routes reste IDENTIQUE */
 
 // 1. Security Headers (Helmet) - Always first
 app.use(helmet() as any);
