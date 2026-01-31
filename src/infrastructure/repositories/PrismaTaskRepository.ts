@@ -1,11 +1,12 @@
 import { ITaskRepository } from '../../domain/repositories/ITaskRepository';
 import { Task, CreateTaskDTO } from '../../domain/entities/Task';
+import { CreateAttachmentDTO } from '../../domain/entities/Attachment';
 import prisma from '../database/prisma';
 
 export class PrismaTaskRepository implements ITaskRepository {
   async create(data: CreateTaskDTO): Promise<Task> {
     const { attachments, ...rest } = data;
-    const task = await prisma.task.create({
+    const task = await prisma.task.create({ 
       data: {
         ...rest,
         attachments: attachments ? {
@@ -24,7 +25,7 @@ export class PrismaTaskRepository implements ITaskRepository {
   }
 
   async findById(id: string): Promise<Task | null> {
-    const task = await prisma.task.findFirst({
+    const task = await prisma.task.findFirst({ 
         where: { id, deletedAt: null },
         include: { attachments: true }
     });
@@ -32,8 +33,8 @@ export class PrismaTaskRepository implements ITaskRepository {
   }
 
   async findAll(skip: number = 0, take: number = 20): Promise<Task[]> {
-    const tasks = await prisma.task.findMany({
-        skip,
+    const tasks = await prisma.task.findMany({ 
+        skip, 
         take,
         where: { deletedAt: null },
         include: { attachments: true }
@@ -41,7 +42,7 @@ export class PrismaTaskRepository implements ITaskRepository {
     return tasks as unknown as Task[];
   }
 
-  async update(id: string, data: Partial<Task> & { attachments?: any[] }): Promise<Task> {
+  async update(id: string, data: Omit<Partial<Task>, 'attachments'> & { attachments?: CreateAttachmentDTO[] }): Promise<Task> {
     const { attachments, ...rest } = data;
 
     const updateData: any = { ...rest };
