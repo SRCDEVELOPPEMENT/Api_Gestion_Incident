@@ -24,7 +24,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-/* tout ton code middleware et routes reste IDENTIQUE */
+// async function startServer() {
+//   // ✅ ICI EXACTEMENT
+//   await bootstrapAdmin();
+
+//   app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`);
+//   });
+// }
+
+// startServer().catch((err) => {
+//   console.error('Failed to start server', err);
+//   process.exit(1);
+// });
 
 // 1. Security Headers (Helmet) - Always first
 app.use(helmet() as any);
@@ -65,12 +77,22 @@ app.use('/api/v1/sub-categories', subCategoryRoutes);
 app.use('/api/v1/sub-processes', subProcessRoutes);
 
 // 404 Handler - Forward to error handler
-app.use((req, res, next) => {
-    const error: any = new Error('Endpoint not found');
-    error.statusCode = 404;
-    error.code = 'RESOURCE_NOT_FOUND';
-    next(error);
+// app.use((req, res, next) => {
+//     const error: any = new Error('Endpoint not found');
+//     error.statusCode = 404;
+//     error.code = 'RESOURCE_NOT_FOUND';
+//     next(error);
+// });
+
+app.use((req, res) => {
+  res.status(404).json({
+    status: "error",
+    code: "NOT_FOUND",
+    message: "Endpoint not found",
+    path: req.originalUrl
+  });
 });
+
 
 // Global Error Handler (Must be last)
 app.use(errorHandler as any);

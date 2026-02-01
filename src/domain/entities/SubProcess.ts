@@ -2,7 +2,7 @@ export interface SubProcess {
   id: string;
   name: string;
   description?: string | null;
-  processId: string;
+  processId: number;
   userId: string;
   createdAt: Date;
   updatedAt: Date;

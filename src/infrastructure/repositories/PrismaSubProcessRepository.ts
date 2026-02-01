@@ -8,7 +8,7 @@ export class PrismaSubProcessRepository implements ISubProcessRepository {
     return subProcess as unknown as SubProcess;
   }
 
-  async findById(id: string): Promise<SubProcess | null> {
+  async findById(id: number): Promise<SubProcess | null> {
     const subProcess = await prisma.subProcess.findFirst({ 
         where: { id, deletedAt: null }
     });

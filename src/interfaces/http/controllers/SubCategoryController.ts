@@ -12,7 +12,7 @@ import { z } from 'zod';
 const subCategorySchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
-    categoryId: z.string().uuid()
+    categoryId: z.coerce.number().int()
 });
 
 export class SubCategoryController {
@@ -37,9 +37,14 @@ export class SubCategoryController {
     }
 
     static async getById(req: Request, res: Response) {
+        const id = Number(req.params.id);
+
+        if (Number.isNaN(id)) {
+            return res.status(400).json({ message: 'Invalid id' });
+        }
         const repo = new PrismaSubCategoryRepository();
         const useCase = new GetSubCategoryByIdUseCase(repo);
-        const result = await useCase.execute((req as any).params.id);
+        const result = await useCase.execute(id);
         if (!result) return (res as any).status(404).json({ message: 'Not found' });
         return (res as any).json(result);
     }

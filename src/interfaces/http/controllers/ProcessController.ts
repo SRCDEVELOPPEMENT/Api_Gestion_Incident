@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaProcessRepository } from '../../../infrastructure/repositories/PrismaProcessRepository';
-import { 
-    CreateProcessUseCase, 
-    GetAllProcessesUseCase, 
-    GetProcessByIdUseCase, 
-    UpdateProcessUseCase, 
-    DeleteProcessUseCase 
+import {
+    CreateProcessUseCase,
+    GetAllProcessesUseCase,
+    GetProcessByIdUseCase,
+    UpdateProcessUseCase,
+    DeleteProcessUseCase
 } from '../../../application/usecases/ProcessUseCases';
 import { z } from 'zod';
 
@@ -35,9 +35,15 @@ export class ProcessController {
     }
 
     static async getById(req: Request, res: Response) {
+        const id = Number(req.params.id);
+
+        if (Number.isNaN(id)) {
+            return res.status(400).json({ message: 'Invalid id' });
+        }
+
         const repo = new PrismaProcessRepository();
         const useCase = new GetProcessByIdUseCase(repo);
-        const result = await useCase.execute((req as any).params.id);
+        const result = await useCase.execute(id);
         if (!result) return (res as any).status(404).json({ message: 'Not found' });
         return (res as any).json(result);
     }

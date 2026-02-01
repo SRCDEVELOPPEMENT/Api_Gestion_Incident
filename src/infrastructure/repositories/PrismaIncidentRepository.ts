@@ -3,33 +3,41 @@ import { Incident, CreateIncidentDTO, UpdateIncidentDTO } from '../../domain/ent
 import prisma from '../database/prisma';
 
 export class PrismaIncidentRepository implements IIncidentRepository {
-  async create(data: CreateIncidentDTO): Promise<Incident> {
-    const { siteIds, assignedUserIds, attachments, ...rest } = data;
+  async create(
+    data: CreateIncidentDTO & { reporterId: string },
+    reporterId: string
+  ): Promise<Incident> {
 
-    const created = await prisma.incident.create({
-      data: {
-        ...rest,
-        status: 'OPEN',
-        incidentSites: {
-          create: siteIds.map(siteId => ({ siteId }))
+    const { siteIds, assignedUserIds, ...rest } = data;
+
+    const created = await prisma.$transaction(async (tx) => {
+      return tx.incident.create({
+        data: {
+          ...rest,
+          reporterId,
+          status: 'OPEN',
+
+          incidentSites: {
+            create: siteIds.map(siteId => ({
+              siteId
+            }))
+          },
+
+          incidentUsers: assignedUserIds && assignedUserIds.length > 0
+            ? {
+                create: assignedUserIds.map(userId => ({
+                  userId
+                }))
+              }
+            : undefined
         },
-        incidentUsers: assignedUserIds ? {
-          create: assignedUserIds.map(userId => ({ userId }))
-        } : undefined,
-        attachments: attachments ? {
-          create: attachments.map(att => ({
-            fileName: att.fileName,
-            url: att.url,
-            uploadedAt: new Date()
-          }))
-        } : undefined
-      },
-      include: {
-        incidentSites: { include: { site: true } },
-        incidentUsers: { include: { user: true } },
-        attachments: true,
-        tasks: true
-      }
+        include: {
+          incidentSites: { include: { site: true } },
+          incidentUsers: { include: { user: true } },
+          attachments: true,
+          tasks: true
+        }
+      });
     });
 
     return this.mapToDomain(created);

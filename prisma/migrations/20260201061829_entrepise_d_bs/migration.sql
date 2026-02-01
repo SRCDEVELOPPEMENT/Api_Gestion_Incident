@@ -1,47 +1,75 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `replacedByToken` on the `RefreshToken` table. All the data in the column will be lost.
-  - You are about to drop the column `user_id` on the `Site` table. All the data in the column will be lost.
-  - Added the required column `userId` to the `Site` table without a default value. This is not possible if the table is not empty.
-
-*/
 BEGIN TRY
 
 BEGIN TRAN;
 
--- DropForeignKey
-ALTER TABLE [dbo].[RefreshToken] DROP CONSTRAINT [RefreshToken_userId_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[User] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [username] NVARCHAR(1000) NOT NULL,
+    [passwordHash] NVARCHAR(1000) NOT NULL,
+    [isActive] BIT NOT NULL CONSTRAINT [User_isActive_df] DEFAULT 1,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [User_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [deletedAt] DATETIME2,
+    CONSTRAINT [User_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [User_username_key] UNIQUE NONCLUSTERED ([username])
+);
 
--- DropForeignKey
-ALTER TABLE [dbo].[RolePermission] DROP CONSTRAINT [RolePermission_permissionId_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[Role] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [name] NVARCHAR(1000) NOT NULL,
+    CONSTRAINT [Role_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [Role_name_key] UNIQUE NONCLUSTERED ([name])
+);
 
--- DropForeignKey
-ALTER TABLE [dbo].[RolePermission] DROP CONSTRAINT [RolePermission_roleId_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[Permission] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [code] NVARCHAR(1000) NOT NULL,
+    CONSTRAINT [Permission_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [Permission_code_key] UNIQUE NONCLUSTERED ([code])
+);
 
--- DropForeignKey
-ALTER TABLE [dbo].[Site] DROP CONSTRAINT [Site_user_id_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[UserRole] (
+    [userId] INT NOT NULL,
+    [roleId] INT NOT NULL,
+    CONSTRAINT [UserRole_pkey] PRIMARY KEY CLUSTERED ([userId],[roleId])
+);
 
--- DropForeignKey
-ALTER TABLE [dbo].[UserRole] DROP CONSTRAINT [UserRole_roleId_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[RolePermission] (
+    [roleId] INT NOT NULL,
+    [permissionId] INT NOT NULL,
+    CONSTRAINT [RolePermission_pkey] PRIMARY KEY CLUSTERED ([roleId],[permissionId])
+);
 
--- DropForeignKey
-ALTER TABLE [dbo].[UserRole] DROP CONSTRAINT [UserRole_userId_fkey];
+-- CreateTable
+CREATE TABLE [dbo].[RefreshToken] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [tokenHash] NVARCHAR(1000) NOT NULL,
+    [userId] INT NOT NULL,
+    [expiresAt] DATETIME2 NOT NULL,
+    [revoked] BIT NOT NULL CONSTRAINT [RefreshToken_revoked_df] DEFAULT 0,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [RefreshToken_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT [RefreshToken_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [RefreshToken_tokenHash_key] UNIQUE NONCLUSTERED ([tokenHash])
+);
 
--- DropIndex
-ALTER TABLE [dbo].[RefreshToken] DROP CONSTRAINT [RefreshToken_tokenHash_key];
-
--- AlterTable
-ALTER TABLE [dbo].[RefreshToken] ALTER COLUMN [tokenHash] NVARCHAR(1000) NOT NULL;
-ALTER TABLE [dbo].[RefreshToken] DROP COLUMN [replacedByToken];
-
--- AlterTable
-ALTER TABLE [dbo].[Site] DROP COLUMN [user_id];
-ALTER TABLE [dbo].[Site] ADD [userId] INT NOT NULL;
+-- CreateTable
+CREATE TABLE [dbo].[Site] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [name] NVARCHAR(1000) NOT NULL,
+    [userId] INT NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [Site_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [updatedAt] DATETIME2 NOT NULL,
+    [deletedAt] DATETIME2,
+    CONSTRAINT [Site_pkey] PRIMARY KEY CLUSTERED ([id])
+);
 
 -- CreateTable
 CREATE TABLE [dbo].[Category] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
     [userId] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Category_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
@@ -52,10 +80,11 @@ CREATE TABLE [dbo].[Category] (
 
 -- CreateTable
 CREATE TABLE [dbo].[SubCategory] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
-    [categoryId] NVARCHAR(1000) NOT NULL,
+    [categoryId] INT NOT NULL,
+    [userId] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [SubCategory_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     [deletedAt] DATETIME2,
@@ -64,7 +93,7 @@ CREATE TABLE [dbo].[SubCategory] (
 
 -- CreateTable
 CREATE TABLE [dbo].[Process] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
     [userId] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Process_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
@@ -75,10 +104,11 @@ CREATE TABLE [dbo].[Process] (
 
 -- CreateTable
 CREATE TABLE [dbo].[SubProcess] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
-    [processId] NVARCHAR(1000) NOT NULL,
+    [processId] INT NOT NULL,
+    [userId] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [SubProcess_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     [deletedAt] DATETIME2,
@@ -87,14 +117,20 @@ CREATE TABLE [dbo].[SubProcess] (
 
 -- CreateTable
 CREATE TABLE [dbo].[Incident] (
-    [id] NVARCHAR(1000) NOT NULL,
-    [title] NVARCHAR(1000) NOT NULL,
-    [description] NVARCHAR(1000),
+    [id] INT NOT NULL IDENTITY(1,1),
+    [description] NVARCHAR(1000) NOT NULL,
+    [scope] NVARCHAR(1000) NOT NULL,
     [status] NVARCHAR(1000) NOT NULL CONSTRAINT [Incident_status_df] DEFAULT 'OPEN',
+    [urgency] NVARCHAR(1000) NOT NULL,
+    [criticality] NVARCHAR(1000) NOT NULL,
+    [otherSubCategory] NVARCHAR(1000),
+    [dueDate] DATETIME2 NOT NULL,
     [userId] INT NOT NULL,
     [reporterId] INT NOT NULL,
-    [subProcessId] NVARCHAR(1000) NOT NULL,
-    [subCategoryId] NVARCHAR(1000) NOT NULL,
+    [subProcessId] INT NOT NULL,
+    [categoryId] INT NOT NULL,
+    [subCategoryId] INT NOT NULL,
+    [processDomainId] INT,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Incident_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     [deletedAt] DATETIME2,
@@ -103,11 +139,11 @@ CREATE TABLE [dbo].[Incident] (
 
 -- CreateTable
 CREATE TABLE [dbo].[Task] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000),
     [userId] INT NOT NULL,
-    [incidentId] NVARCHAR(1000) NOT NULL,
+    [incidentId] INT NOT NULL,
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Task_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     [deletedAt] DATETIME2,
@@ -116,31 +152,31 @@ CREATE TABLE [dbo].[Task] (
 
 -- CreateTable
 CREATE TABLE [dbo].[Attachment] (
-    [id] NVARCHAR(1000) NOT NULL,
+    [id] INT NOT NULL IDENTITY(1,1),
     [fileName] NVARCHAR(1000) NOT NULL,
     [url] NVARCHAR(1000) NOT NULL,
-    [incidentId] NVARCHAR(1000),
-    [taskId] NVARCHAR(1000),
+    [incidentId] INT,
+    [taskId] INT,
     [uploadedAt] DATETIME2 NOT NULL CONSTRAINT [Attachment_uploadedAt_df] DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT [Attachment_pkey] PRIMARY KEY CLUSTERED ([id])
 );
 
 -- CreateTable
-CREATE TABLE [dbo].[_IncidentSites] (
-    [A] NVARCHAR(1000) NOT NULL,
-    [B] NVARCHAR(1000) NOT NULL,
-    CONSTRAINT [_IncidentSites_AB_unique] UNIQUE NONCLUSTERED ([A],[B])
+CREATE TABLE [dbo].[IncidentSite] (
+    [incidentId] INT NOT NULL,
+    [siteId] INT NOT NULL,
+    CONSTRAINT [IncidentSite_pkey] PRIMARY KEY CLUSTERED ([incidentId],[siteId])
 );
 
 -- CreateTable
-CREATE TABLE [dbo].[_IncidentAssignedUsers] (
-    [A] NVARCHAR(1000) NOT NULL,
-    [B] INT NOT NULL,
-    CONSTRAINT [_IncidentAssignedUsers_AB_unique] UNIQUE NONCLUSTERED ([A],[B])
+CREATE TABLE [dbo].[IncidentUser] (
+    [incidentId] INT NOT NULL,
+    [userId] INT NOT NULL,
+    CONSTRAINT [IncidentUser_pkey] PRIMARY KEY CLUSTERED ([incidentId],[userId])
 );
 
 -- CreateIndex
-ALTER TABLE [dbo].[RefreshToken] ADD CONSTRAINT [RefreshToken_tokenHash_key] UNIQUE NONCLUSTERED ([tokenHash]);
+CREATE NONCLUSTERED INDEX [RefreshToken_userId_idx] ON [dbo].[RefreshToken]([userId]);
 
 -- CreateIndex
 CREATE NONCLUSTERED INDEX [SubCategory_categoryId_idx] ON [dbo].[SubCategory]([categoryId]);
@@ -155,10 +191,16 @@ CREATE NONCLUSTERED INDEX [Incident_userId_idx] ON [dbo].[Incident]([userId]);
 CREATE NONCLUSTERED INDEX [Incident_reporterId_idx] ON [dbo].[Incident]([reporterId]);
 
 -- CreateIndex
+CREATE NONCLUSTERED INDEX [Incident_categoryId_idx] ON [dbo].[Incident]([categoryId]);
+
+-- CreateIndex
 CREATE NONCLUSTERED INDEX [Incident_subProcessId_idx] ON [dbo].[Incident]([subProcessId]);
 
 -- CreateIndex
 CREATE NONCLUSTERED INDEX [Incident_subCategoryId_idx] ON [dbo].[Incident]([subCategoryId]);
+
+-- CreateIndex
+CREATE NONCLUSTERED INDEX [Incident_processDomainId_idx] ON [dbo].[Incident]([processDomainId]);
 
 -- CreateIndex
 CREATE NONCLUSTERED INDEX [Task_userId_idx] ON [dbo].[Task]([userId]);
@@ -171,12 +213,6 @@ CREATE NONCLUSTERED INDEX [Attachment_incidentId_idx] ON [dbo].[Attachment]([inc
 
 -- CreateIndex
 CREATE NONCLUSTERED INDEX [Attachment_taskId_idx] ON [dbo].[Attachment]([taskId]);
-
--- CreateIndex
-CREATE NONCLUSTERED INDEX [_IncidentSites_B_index] ON [dbo].[_IncidentSites]([B]);
-
--- CreateIndex
-CREATE NONCLUSTERED INDEX [_IncidentAssignedUsers_B_index] ON [dbo].[_IncidentAssignedUsers]([B]);
 
 -- AddForeignKey
 ALTER TABLE [dbo].[UserRole] ADD CONSTRAINT [UserRole_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE NO ACTION;
@@ -203,10 +239,16 @@ ALTER TABLE [dbo].[Category] ADD CONSTRAINT [Category_userId_fkey] FOREIGN KEY (
 ALTER TABLE [dbo].[SubCategory] ADD CONSTRAINT [SubCategory_categoryId_fkey] FOREIGN KEY ([categoryId]) REFERENCES [dbo].[Category]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
+ALTER TABLE [dbo].[SubCategory] ADD CONSTRAINT [SubCategory_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
 ALTER TABLE [dbo].[Process] ADD CONSTRAINT [Process_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[SubProcess] ADD CONSTRAINT [SubProcess_processId_fkey] FOREIGN KEY ([processId]) REFERENCES [dbo].[Process]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[SubProcess] ADD CONSTRAINT [SubProcess_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
@@ -218,7 +260,13 @@ ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_reporterId_fkey] FOREIGN K
 ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_subProcessId_fkey] FOREIGN KEY ([subProcessId]) REFERENCES [dbo].[SubProcess]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
+ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_categoryId_fkey] FOREIGN KEY ([categoryId]) REFERENCES [dbo].[Category]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_subCategoryId_fkey] FOREIGN KEY ([subCategoryId]) REFERENCES [dbo].[SubCategory]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[Incident] ADD CONSTRAINT [Incident_processDomainId_fkey] FOREIGN KEY ([processDomainId]) REFERENCES [dbo].[Process]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[Task] ADD CONSTRAINT [Task_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
@@ -233,16 +281,16 @@ ALTER TABLE [dbo].[Attachment] ADD CONSTRAINT [Attachment_incidentId_fkey] FOREI
 ALTER TABLE [dbo].[Attachment] ADD CONSTRAINT [Attachment_taskId_fkey] FOREIGN KEY ([taskId]) REFERENCES [dbo].[Task]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[_IncidentSites] ADD CONSTRAINT [_IncidentSites_A_fkey] FOREIGN KEY ([A]) REFERENCES [dbo].[Incident]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[IncidentSite] ADD CONSTRAINT [IncidentSite_incidentId_fkey] FOREIGN KEY ([incidentId]) REFERENCES [dbo].[Incident]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[_IncidentSites] ADD CONSTRAINT [_IncidentSites_B_fkey] FOREIGN KEY ([B]) REFERENCES [dbo].[Site]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[IncidentSite] ADD CONSTRAINT [IncidentSite_siteId_fkey] FOREIGN KEY ([siteId]) REFERENCES [dbo].[Site]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[_IncidentAssignedUsers] ADD CONSTRAINT [_IncidentAssignedUsers_A_fkey] FOREIGN KEY ([A]) REFERENCES [dbo].[Incident]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[IncidentUser] ADD CONSTRAINT [IncidentUser_incidentId_fkey] FOREIGN KEY ([incidentId]) REFERENCES [dbo].[Incident]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE [dbo].[_IncidentAssignedUsers] ADD CONSTRAINT [_IncidentAssignedUsers_B_fkey] FOREIGN KEY ([B]) REFERENCES [dbo].[User]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE [dbo].[IncidentUser] ADD CONSTRAINT [IncidentUser_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 COMMIT TRAN;
 

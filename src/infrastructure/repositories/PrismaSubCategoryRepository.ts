@@ -8,7 +8,7 @@ export class PrismaSubCategoryRepository implements ISubCategoryRepository {
     return subCategory as unknown as SubCategory;
   }
 
-  async findById(id: string): Promise<SubCategory | null> {
+  async findById(id: number): Promise<SubCategory | null> {
     const subCategory = await prisma.subCategory.findFirst({ 
         where: { id, deletedAt: null }
     });

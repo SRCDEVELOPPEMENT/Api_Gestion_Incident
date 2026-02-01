@@ -17,7 +17,7 @@ model User {
   passwordHash   String
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
-
+  deletedAt      DateTime? // ✅ AJOUT ICI
   roles          UserRole[]
   refreshTokens  RefreshToken[]
 
@@ -25,10 +25,11 @@ model User {
   categories     Category[]
   processes      Process[]
   tasks          Task[]
-
+  subCategory    SubCategory[]
+  subProcess     SubProcess[]
   createdIncidents  Incident[] @relation("IncidentCreator")
   reportedIncidents Incident[] @relation("IncidentReporter")
-  assignedIncidents Incident[] @relation("IncidentAssignedUsers")
+  assignedIncidents IncidentUser[]
 }
 
 model Role {
@@ -84,13 +85,13 @@ model RefreshToken {
 //////////////
 
 model Site {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   name      String
 
   userId    Int
   user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  incidents Incident[] @relation("IncidentSites")
+  incidentSites IncidentSite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,13 +99,14 @@ model Site {
 }
 
 model Category {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   name      String
 
   userId    Int
   user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   subCategories SubCategory[]
+  incidents     Incident[]   // ✅ AJOUT ICI
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,12 +114,14 @@ model Category {
 }
 
 model SubCategory {
-  id          String   @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   name        String
   description String?
 
-  categoryId  String
+  categoryId  Int 
   category    Category @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   incidents Incident[]
 
@@ -129,13 +133,14 @@ model SubCategory {
 }
 
 model Process {
-  id        String   @id @default(uuid())
+  id        Int   @id @default(autoincrement())
   name      String
 
   userId    Int
   user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   subProcesses SubProcess[]
+  incidents    Incident[]   // ✅ AJOUT ICI
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,12 +148,14 @@ model Process {
 }
 
 model SubProcess {
-  id          String   @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   name        String
   description String?
 
-  processId   String
+  processId   Int 
   process     Process @relation(fields: [processId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userId    Int
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   incidents Incident[]
 
@@ -160,10 +167,15 @@ model SubProcess {
 }
 
 model Incident {
-  id            String   @id @default(uuid())
-  title         String
-  description   String?
+  id            Int   @id @default(autoincrement())
+  description   String
+  scope         String
   status        String   @default("OPEN")
+  urgency       String
+  criticality   String
+  otherSubCategory String?
+
+  dueDate         DateTime
 
   userId        Int
   user          User @relation("IncidentCreator", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -171,15 +183,21 @@ model Incident {
   reporterId    Int
   reporter      User @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  subProcessId  String
+  subProcessId  Int
   subProcess    SubProcess @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  subCategoryId String
+  categoryId      Int
+  category        Category  @relation(fields: [categoryId], references: [id])
+
+  subCategoryId Int
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  processDomainId Int?
+  processDomain   Process?  @relation(fields: [processDomainId], references: [id])
+
   tasks         Task[]
-  sites         Site[]   @relation("IncidentSites")
-  assignedUsers User[]   @relation("IncidentAssignedUsers")
+  incidentSites   IncidentSite[]
+  incidentUsers   IncidentUser[]
   attachments   Attachment[]
 
   createdAt     DateTime @default(now())
@@ -188,19 +206,21 @@ model Incident {
 
   @@index([userId])
   @@index([reporterId])
+  @@index([categoryId])
   @@index([subProcessId])
   @@index([subCategoryId])
+  @@index([processDomainId])
 }
 
 model Task {
-  id          String   @id @default(uuid())
+  id          Int   @id @default(autoincrement())
   name        String
   description String?
 
   userId      Int
   user        User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  incidentId  String
+  incidentId  Int
   incident    Incident @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   attachments Attachment[]
@@ -213,19 +233,42 @@ model Task {
   @@index([incidentId])
 }
 
+
 model Attachment {
-  id         String   @id @default(uuid())
+  id         Int   @id @default(autoincrement())
   fileName   String
+  mimeType   String
+  size       Int
   url        String
 
-  incidentId String?
+  incidentId Int?
   incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  taskId     String?
+  taskId     Int?
   task       Task? @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   uploadedAt DateTime @default(now())
 
   @@index([incidentId])
   @@index([taskId])
+}
+
+model IncidentSite {
+  incidentId Int
+  siteId     Int
+
+  incident   Incident @relation(fields: [incidentId], references: [id])
+  site       Site     @relation(fields: [siteId], references: [id])
+
+  @@id([incidentId, siteId])
+}
+
+model IncidentUser {
+  incidentId Int
+  userId     Int
+
+  incident   Incident @relation(fields: [incidentId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@id([incidentId, userId])
 }

@@ -2,7 +2,7 @@ export interface SubCategory {
   id: string;
   name: string;
   description?: string | null;
-  categoryId: string;
+  categoryId: number;
   userId: string;
   createdAt: Date;
   updatedAt: Date;

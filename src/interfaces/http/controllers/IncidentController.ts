@@ -11,36 +11,85 @@ import { z } from 'zod';
 import { NotFoundError } from '../../../domain/errors/AppError';
 
 const incidentSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().optional(),
+  description: z.string().min(5),
   siteIds: z.array(z.string().uuid()).min(1),
-  subProcessId: z.string().uuid(),
+  categoryId: z.string().uuid(),
   subCategoryId: z.string().uuid(),
+  otherSubCategory: z.string().optional(),
+  processDomainId: z.string().uuid().optional(),
+  subProcessId: z.string().uuid().optional(),
   assignedUserIds: z.array(z.string().uuid()).optional(),
-  attachments: z.array(z.object({
-    fileName: z.string(),
-    url: z.string().url()
-  })).optional()
+  dueDate: z.string(),
+  urgency: z.enum(['Faible', 'Moyenne', 'Haute', 'Immédiate']),
+  criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique'])
 });
 
 export class IncidentController {
 
-  static async create(req: Request, res: Response, next: NextFunction) {
+  // static async create(req: Request, res: Response, next: NextFunction) {
+  //   try {
+  //     const validatedData = incidentSchema.parse((req as any).body);
+  //     const repo = new PrismaIncidentRepository();
+  //     const useCase = new CreateIncidentUseCase(repo);
+  //     const userId = (req as any).user.id;
+
+  //     const incident = await useCase.execute({
+  //       ...validatedData,
+  //       userId
+  //     });
+
+  //     return (res as any).status(201).json(incident);
+  //   } catch (error) {
+  //     // Fix: Type 'NextFunction' has no call signatures.
+  //     (next as any)(error);
+  //   }
+  // }
+  static async create(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const validatedData = incidentSchema.parse((req as any).body);
+      /**
+       * 1️⃣ Sécurité : utilisateur authentifié
+       */
+      const authUser = (req as any).user;
+      if (!authUser?.id) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
+      /**
+       * 2️⃣ Validation Zod (body uniquement)
+       */
+      const validatedData = incidentSchema.parse(req.body);
+
+      /**
+       * 3️⃣ Fichiers (multer)
+       */
+      const files = (req as any).files as Express.Multer.File[] | undefined;
+
+      /**
+       * 4️⃣ Initialisation UseCase
+       */
       const repo = new PrismaIncidentRepository();
       const useCase = new CreateIncidentUseCase(repo);
-      const userId = (req as any).user.id;
 
-      const incident = await useCase.execute({
-        ...validatedData,
-        userId
-      });
+      /**
+       * 5️⃣ Exécution métier
+       */
+      const incident = await useCase.execute(
+        validatedData,
+        authUser.id,
+        files
+      );
 
-      return (res as any).status(201).json(incident);
+      /**
+       * 6️⃣ Réponse
+       */
+      return res.status(201).json(incident);
+
     } catch (error) {
-      // Fix: Type 'NextFunction' has no call signatures.
-      (next as any)(error);
+      next(error);
     }
   }
 

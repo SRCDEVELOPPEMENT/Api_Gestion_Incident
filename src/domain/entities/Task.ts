@@ -5,7 +5,7 @@ export interface Task {
   name: string;
   description?: string | null;
   userId: string;
-  incidentId: string;
+  incidentId: number;
   attachments?: Attachment[];  
   createdAt: Date;
   updatedAt: Date;

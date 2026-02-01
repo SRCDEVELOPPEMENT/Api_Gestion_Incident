@@ -8,7 +8,7 @@ export class PrismaProcessRepository implements IProcessRepository {
     return process as unknown as Process;
   }
 
-  async findById(id: string): Promise<Process | null> {
+  async findById(id: number): Promise<Process | null> {
     const process = await prisma.process.findFirst({ 
         where: { id, deletedAt: null },
         include: { subProcesses: true } 
