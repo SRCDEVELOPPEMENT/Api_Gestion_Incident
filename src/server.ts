@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+
 import incidentRoutes from './interfaces/http/routes/incidentRoutes';
 import authRoutes from './interfaces/http/routes/authRoutes';
 import siteRoutes from './interfaces/http/routes/siteRoutes';
@@ -12,58 +13,62 @@ import processRoutes from './interfaces/http/routes/processRoutes';
 import categoryRoutes from './interfaces/http/routes/categoryRoutes';
 import subCategoryRoutes from './interfaces/http/routes/subCategoryRoutes';
 import subProcessRoutes from './interfaces/http/routes/subProcessRoutes';
+
 import { errorHandler } from './interfaces/http/middlewares/errorHandler';
 import { correlationMiddleware } from './interfaces/http/middlewares/correlationMiddleware';
 import { requestLogger, auditLogger } from './interfaces/http/middlewares/loggingMiddleware';
 import { globalLimiter } from './interfaces/http/middlewares/securityMiddleware';
 import { HealthController } from './interfaces/http/controllers/HealthController';
-import { bootstrapAdmin } from './bootstrap/admin.bootstrap'; // ✅ AJOUT
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// async function startServer() {
-//   // ✅ ICI EXACTEMENT
-//   await bootstrapAdmin();
+/* -------------------------------------------------- */
+/* 1. Sécurité & infra                                */
+/* -------------------------------------------------- */
 
-//   app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
-//   });
-// }
-
-// startServer().catch((err) => {
-//   console.error('Failed to start server', err);
-//   process.exit(1);
-// });
-
-// 1. Security Headers (Helmet) - Always first
 app.use(helmet() as any);
-
-// 2. CORS - Configurable via ENV (Best Practice)
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '*', 
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
-};
-app.use(cors(corsOptions) as any);
+}) as any);
 
-// 3. Global Rate Limiter (Prevent DoS)
-app.use(globalLimiter);
+app.use(globalLimiter as any);
+app.use(correlationMiddleware);
+app.use(requestLogger);
 
-// 4. Infrastructure Middlewares
-app.use(correlationMiddleware); // Must be before logger to attach ID
-app.use(express.json() as any); // Body parser
-app.use(requestLogger); // Log incoming requests
+/* -------------------------------------------------- */
+/* 2. Body parser CONDITIONNEL                        */
+/* -------------------------------------------------- */
 
-// 5. Public Routes (Health/Ready)
+app.use((req, res, next) => {
+  // ❌ NE PAS parser le multipart (multer s’en charge)
+  if (
+    req.method === 'POST' &&
+    req.path === '/api/v1/incidents'
+  ) {
+    return next();
+  }
+
+  // ✅ JSON pour TOUT le reste (auth inclus)
+  express.json()(req, res, next);
+});
+
+/* -------------------------------------------------- */
+/* 3. Routes publiques                                */
+/* -------------------------------------------------- */
+
 app.get('/health', HealthController.health);
 app.get('/ready', HealthController.ready);
 
-// 6. API Routes
-// Audit Logger is applied here to capture modifications on authenticated routes
-app.use('/api/v1', auditLogger); 
+/* -------------------------------------------------- */
+/* 4. Routes API                                      */
+/* -------------------------------------------------- */
+
+app.use('/api/v1', auditLogger);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/incidents', incidentRoutes);
@@ -76,28 +81,25 @@ app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/sub-categories', subCategoryRoutes);
 app.use('/api/v1/sub-processes', subProcessRoutes);
 
-// 404 Handler - Forward to error handler
-// app.use((req, res, next) => {
-//     const error: any = new Error('Endpoint not found');
-//     error.statusCode = 404;
-//     error.code = 'RESOURCE_NOT_FOUND';
-//     next(error);
-// });
+/* -------------------------------------------------- */
+/* 5. 404 & erreurs                                   */
+/* -------------------------------------------------- */
 
 app.use((req, res) => {
   res.status(404).json({
-    status: "error",
-    code: "NOT_FOUND",
-    message: "Endpoint not found",
+    status: 'error',
+    code: 'NOT_FOUND',
+    message: 'Endpoint not found',
     path: req.originalUrl
   });
 });
 
-
-// Global Error Handler (Must be last)
 app.use(errorHandler as any);
 
+/* -------------------------------------------------- */
+/* 6. Start                                           */
+/* -------------------------------------------------- */
+
 app.listen(PORT, () => {
-  // Use console.log directly here as Logger might not be initialized with context yet
   console.log(`Server running on port ${PORT}`);
 });

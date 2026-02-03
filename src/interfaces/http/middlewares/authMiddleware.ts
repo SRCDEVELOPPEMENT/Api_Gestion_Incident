@@ -71,10 +71,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       permissions: Array.from(new Set(permissions)) // Dedup
     };
 
+    // Return 401 (Unauthorized) instead of 403 (Forbidden) when token is invalid/expired
+    // This allows standard clients to detect the need for a refresh
     // Fix: Type 'NextFunction' has no call signatures.
     (next as any)();
   } catch (err) {
-    return (res as any).status(403).json({ message: 'Forbidden: Invalid Token' });
+    return (res as any).status(401).json({ message: 'Invalid or Expired Token' });
   }
 };
 

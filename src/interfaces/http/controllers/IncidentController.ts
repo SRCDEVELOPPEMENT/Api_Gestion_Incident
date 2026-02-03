@@ -9,16 +9,27 @@ import {
 import { PrismaIncidentRepository } from '../../../infrastructure/repositories/PrismaIncidentRepository';
 import { z } from 'zod';
 import { NotFoundError } from '../../../domain/errors/AppError';
+import { CreateIncidentDTO, UpdateIncidentDTO } from '../../../domain/entities/Incident';
 
 const incidentSchema = z.object({
   description: z.string().min(5),
-  siteIds: z.array(z.string().uuid()).min(1),
-  categoryId: z.string().uuid(),
-  subCategoryId: z.string().uuid(),
+  scope: z.string().optional().nullable(),
+  siteIds: z.preprocess(
+    (val) => Array.isArray(val) ? val : [val],
+    z.array(z.string()).min(1)
+  ),
+  categoryId: z.string(),
+  subCategoryId: z.string().optional(),
   otherSubCategory: z.string().optional(),
-  processDomainId: z.string().uuid().optional(),
-  subProcessId: z.string().uuid().optional(),
-  assignedUserIds: z.array(z.string().uuid()).optional(),
+  processDomainId: z.string().optional(),
+  subProcessId: z.string().optional(),
+  assignedUserIds: z.preprocess(
+    (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    },
+    z.array(z.string()).optional()
+  ),
   dueDate: z.string(),
   urgency: z.enum(['Faible', 'Moyenne', 'Haute', 'Immédiate']),
   criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique'])
@@ -26,24 +37,6 @@ const incidentSchema = z.object({
 
 export class IncidentController {
 
-  // static async create(req: Request, res: Response, next: NextFunction) {
-  //   try {
-  //     const validatedData = incidentSchema.parse((req as any).body);
-  //     const repo = new PrismaIncidentRepository();
-  //     const useCase = new CreateIncidentUseCase(repo);
-  //     const userId = (req as any).user.id;
-
-  //     const incident = await useCase.execute({
-  //       ...validatedData,
-  //       userId
-  //     });
-
-  //     return (res as any).status(201).json(incident);
-  //   } catch (error) {
-  //     // Fix: Type 'NextFunction' has no call signatures.
-  //     (next as any)(error);
-  //   }
-  // }
   static async create(
     req: Request,
     res: Response,
@@ -61,13 +54,12 @@ export class IncidentController {
       /**
        * 2️⃣ Validation Zod (body uniquement)
        */
-      const validatedData = incidentSchema.parse(req.body);
-
+      //const validatedData = incidentSchema.parse(req.body);
+      const validatedData = incidentSchema.parse(req.body) as CreateIncidentDTO;
       /**
        * 3️⃣ Fichiers (multer)
        */
-      const files = (req as any).files as Express.Multer.File[] | undefined;
-
+      const files = req.files as Express.Multer.File[] | undefined;
       /**
        * 4️⃣ Initialisation UseCase
        */
@@ -77,6 +69,7 @@ export class IncidentController {
       /**
        * 5️⃣ Exécution métier
        */
+      //const validatedData = incidentSchema.parse(req.body);
       const incident = await useCase.execute(
         validatedData,
         authUser.id,
@@ -128,18 +121,48 @@ export class IncidentController {
     }
   }
 
-  static async update(req: Request, res: Response, next: NextFunction) {
-    try {
-      const validatedData = incidentSchema.partial().parse((req as any).body);
-      const repo = new PrismaIncidentRepository();
-      const useCase = new UpdateIncidentUseCase(repo);
-      const incident = await useCase.execute((req as any).params.id, validatedData);
-      return (res as any).json(incident);
-    } catch (error) {
-      // Fix: Type 'NextFunction' has no call signatures.
-      (next as any)(error);
-    }
-  }
+  // static async update(req: Request, res: Response, next: NextFunction) {
+  //   try {
+  //     const parsedData = incidentSchema.partial().parse((req as any).body);
+  //     const validatedData = {
+  //       ...parsedData,
+  //       scope: parsedData.scope ?? undefined
+  //     } as UpdateIncidentDTO;
+  //     const repo = new PrismaIncidentRepository();
+  //     const useCase = new UpdateIncidentUseCase(repo);
+  //     const incident = await useCase.execute((req as any).params.id, validatedData);
+  //     return (res as any).json(incident);
+  //   } catch (error) {
+  //     // Fix: Type 'NextFunction' has no call signatures.
+  //     (next as any)(error);
+  //   }
+  // }
+
+  // static async update(req: Request, res: Response, next: NextFunction) {
+  //   try {
+  //     const authUser = (req as any).user;
+  //     if (!authUser?.id) {
+  //       return res.status(401).json({ message: 'Unauthorized' });
+  //     }
+
+  //     const validatedData = incidentSchema.partial().parse(req.body);
+
+  //     const files = (req as any).files as Express.Multer.File[] | undefined;
+
+  //     const repo = new PrismaIncidentRepository();
+  //     const useCase = new UpdateIncidentUseCase(repo);
+
+  //     const incident = await useCase.execute(
+  //       req.params.id,
+  //       validatedData,
+  //       files
+  //     );
+
+  //     return res.json(incident);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
 
   static async delete(req: Request, res: Response, next: NextFunction) {
     try {

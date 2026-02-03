@@ -5,6 +5,7 @@ import { Attachment } from './Attachment';
 
 export interface Incident {
   id: string;
+  reference: string;
   description: string;
   status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
   reporterId: string;
@@ -13,6 +14,7 @@ export interface Incident {
   processDomainId?: string;
   dueDate: Date;
   scope?: string | null;
+  impactedServices?: string[];
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
 
@@ -28,8 +30,9 @@ export interface Incident {
 }
 
 export type CreateIncidentDTO = {
+  reference?: string; // ⬅️ optionnel (backend only)
   description: string;
-  subProcessId: string;
+  subProcessId?: string; // ✅ OPTIONNEL
   subCategoryId: string;
   siteIds: string[];
   assignedUserIds?: string[];
@@ -42,5 +45,22 @@ export type CreateIncidentDTO = {
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
 };
 
-export type UpdateIncidentDTO =
-  Partial<Omit<CreateIncidentDTO, 'siteIds'>>;
+export type UpdateIncidentDTO = Partial<{
+  description: string;
+  subProcessId?: string;
+  subCategoryId: string;
+  categoryId: string;
+  processDomainId?: string;
+  dueDate: string;
+  scope: string;
+  urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
+  criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
+
+  // ✅ relations modifiables
+  siteIds: string[];
+  assignedUserIds?: string[];
+  attachments?: {
+    fileName: string;
+    url: string;
+  }[];
+}>;

@@ -168,6 +168,7 @@ model SubProcess {
 
 model Incident {
   id            Int   @id @default(autoincrement())
+  reference     String   @unique
   description   String
   scope         String
   status        String   @default("OPEN")
