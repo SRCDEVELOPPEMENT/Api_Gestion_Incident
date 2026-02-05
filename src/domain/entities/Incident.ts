@@ -14,7 +14,7 @@ export interface Incident {
   processDomainId?: string;
   dueDate: Date;
   scope?: string | null;
-  impactedServices?: string[];
+  //impactedServices?: string[];
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
 
@@ -22,6 +22,7 @@ export interface Incident {
   categoryId: string;
   tasks?: Task[];
   sites?: Site[];
+  impactedSites?: Site[];
   assignedUsers?: User[]; // Users assigned to the incident
   attachments?: Attachment[];
   createdAt: Date;
@@ -35,6 +36,7 @@ export type CreateIncidentDTO = {
   subProcessId?: string; // ✅ OPTIONNEL
   subCategoryId: string;
   siteIds: string[];
+  impactedSiteIds: string[];
   assignedUserIds?: string[];
   categoryId: string;
   otherSubCategory?: string;
@@ -58,6 +60,7 @@ export type UpdateIncidentDTO = Partial<{
 
   // ✅ relations modifiables
   siteIds: string[];
+  impactedSiteIds: string[];       // ✅ NOUVEAU
   assignedUserIds?: string[];
   attachments?: {
     fileName: string;

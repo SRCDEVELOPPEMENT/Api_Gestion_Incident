@@ -12,6 +12,13 @@ export interface Task {
   deletedAt?: Date | null;
 }
 
-export type CreateTaskDTO = Pick<Task, 'name' | 'description' | 'userId' | 'incidentId'> & {
-  attachments?: CreateAttachmentDTO[];
+// export type CreateTaskDTO = Pick<Task, 'name' | 'description' | 'userId' | 'incidentId'> & {
+//   attachments?: CreateAttachmentDTO[];
+// };
+
+export type CreateTaskDTO = {
+  name: string;
+  description?: string;
+  incidentId: number;
+  userId: number;
 };

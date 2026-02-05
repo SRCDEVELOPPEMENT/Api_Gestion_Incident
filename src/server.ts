@@ -19,11 +19,26 @@ import { correlationMiddleware } from './interfaces/http/middlewares/correlation
 import { requestLogger, auditLogger } from './interfaces/http/middlewares/loggingMiddleware';
 import { globalLimiter } from './interfaces/http/middlewares/securityMiddleware';
 import { HealthController } from './interfaces/http/controllers/HealthController';
+import { bootstrapAdmin } from './bootstrap/admin.bootstrap';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// async function startServer() {
+//   // ✅ ICI EXACTEMENT
+//   await bootstrapAdmin();
+
+//   app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`);
+//   });
+// }
+
+// startServer().catch((err) => {
+//   console.error('Failed to start server', err);
+//   process.exit(1);
+// });
 
 /* -------------------------------------------------- */
 /* 1. Sécurité & infra                                */

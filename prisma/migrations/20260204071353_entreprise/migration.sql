@@ -118,6 +118,7 @@ CREATE TABLE [dbo].[SubProcess] (
 -- CreateTable
 CREATE TABLE [dbo].[Incident] (
     [id] INT NOT NULL IDENTITY(1,1),
+    [reference] NVARCHAR(1000) NOT NULL,
     [description] NVARCHAR(1000) NOT NULL,
     [scope] NVARCHAR(1000) NOT NULL,
     [status] NVARCHAR(1000) NOT NULL CONSTRAINT [Incident_status_df] DEFAULT 'OPEN',
@@ -134,7 +135,8 @@ CREATE TABLE [dbo].[Incident] (
     [createdAt] DATETIME2 NOT NULL CONSTRAINT [Incident_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
     [updatedAt] DATETIME2 NOT NULL,
     [deletedAt] DATETIME2,
-    CONSTRAINT [Incident_pkey] PRIMARY KEY CLUSTERED ([id])
+    CONSTRAINT [Incident_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [Incident_reference_key] UNIQUE NONCLUSTERED ([reference])
 );
 
 -- CreateTable

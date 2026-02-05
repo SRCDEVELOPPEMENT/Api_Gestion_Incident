@@ -198,6 +198,7 @@ model Incident {
 
   tasks         Task[]
   incidentSites   IncidentSite[]
+  incidentImpactedSites  IncidentImpactedSite[]
   incidentUsers   IncidentUser[]
   attachments   Attachment[]
 
@@ -217,7 +218,8 @@ model Task {
   id          Int   @id @default(autoincrement())
   name        String
   description String?
-
+  status      String?   @default("OPEN")
+  dueDate     DateTime?
   userId      Int
   user        User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -238,8 +240,6 @@ model Task {
 model Attachment {
   id         Int   @id @default(autoincrement())
   fileName   String
-  mimeType   String
-  size       Int
   url        String
 
   incidentId Int?
@@ -272,4 +272,14 @@ model IncidentUser {
   user       User     @relation(fields: [userId], references: [id])
 
   @@id([incidentId, userId])
+}
+
+model IncidentImpactedSite {
+  incidentId Int
+  siteId     Int
+
+  incident Incident @relation(fields: [incidentId], references: [id])
+  site     Site     @relation(fields: [siteId], references: [id])
+
+  @@id([incidentId, siteId])
 }

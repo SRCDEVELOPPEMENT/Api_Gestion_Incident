@@ -10,6 +10,7 @@ import { PrismaIncidentRepository } from '../../../infrastructure/repositories/P
 import { z } from 'zod';
 import { NotFoundError } from '../../../domain/errors/AppError';
 import { CreateIncidentDTO, UpdateIncidentDTO } from '../../../domain/entities/Incident';
+import prisma from '../../../infrastructure/database/prisma';
 
 const incidentSchema = z.object({
   description: z.string().min(5),
@@ -17,6 +18,14 @@ const incidentSchema = z.object({
   siteIds: z.preprocess(
     (val) => Array.isArray(val) ? val : [val],
     z.array(z.string()).min(1)
+  ),
+  // 🔗 Sites concernés (NOUVEAU)
+  impactedSiteIds: z.preprocess(
+    (val) => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : [val];
+    },
+    z.array(z.string())
   ),
   categoryId: z.string(),
   subCategoryId: z.string().optional(),
@@ -121,48 +130,31 @@ export class IncidentController {
     }
   }
 
-  // static async update(req: Request, res: Response, next: NextFunction) {
-  //   try {
-  //     const parsedData = incidentSchema.partial().parse((req as any).body);
-  //     const validatedData = {
-  //       ...parsedData,
-  //       scope: parsedData.scope ?? undefined
-  //     } as UpdateIncidentDTO;
-  //     const repo = new PrismaIncidentRepository();
-  //     const useCase = new UpdateIncidentUseCase(repo);
-  //     const incident = await useCase.execute((req as any).params.id, validatedData);
-  //     return (res as any).json(incident);
-  //   } catch (error) {
-  //     // Fix: Type 'NextFunction' has no call signatures.
-  //     (next as any)(error);
-  //   }
-  // }
+  static async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authUser = (req as any).user;
+      if (!authUser?.id) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
 
-  // static async update(req: Request, res: Response, next: NextFunction) {
-  //   try {
-  //     const authUser = (req as any).user;
-  //     if (!authUser?.id) {
-  //       return res.status(401).json({ message: 'Unauthorized' });
-  //     }
+      const validatedData = incidentSchema.partial().parse(req.body) as UpdateIncidentDTO;
 
-  //     const validatedData = incidentSchema.partial().parse(req.body);
+      const files = (req as any).files as Express.Multer.File[] | undefined;
 
-  //     const files = (req as any).files as Express.Multer.File[] | undefined;
+      const repo = new PrismaIncidentRepository();
+      const useCase = new UpdateIncidentUseCase(repo);
 
-  //     const repo = new PrismaIncidentRepository();
-  //     const useCase = new UpdateIncidentUseCase(repo);
+      const incident = await useCase.execute(
+        req.params.id,
+        validatedData,
+        files
+      );
 
-  //     const incident = await useCase.execute(
-  //       req.params.id,
-  //       validatedData,
-  //       files
-  //     );
-
-  //     return res.json(incident);
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // }
+      return res.json(incident);
+    } catch (error) {
+      next(error);
+    }
+  }
 
   static async delete(req: Request, res: Response, next: NextFunction) {
     try {
@@ -174,5 +166,20 @@ export class IncidentController {
       // Fix: Type 'NextFunction' has no call signatures.
       (next as any)(error);
     }
+  }
+
+  static async getAttachments(req: Request, res: Response) {
+      const incidentId = Number(req.params.incidentId);
+
+      const attachments = await prisma.attachment.findMany({
+        where: {
+          incidentId,
+        },
+        orderBy: {
+          uploadedAt: 'desc',
+        },
+      });
+
+      return res.json(attachments);
   }
 }
