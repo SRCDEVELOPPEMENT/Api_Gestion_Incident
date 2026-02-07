@@ -48,7 +48,7 @@ export class LoginUserUseCase {
 
     // 5. Tokens
     const accessToken = jwt.sign(payload, ACCESS_SECRET, {
-      expiresIn: '15m',
+      expiresIn: '2h',
     });
 
     const refreshToken = jwt.sign(payload, REFRESH_SECRET, {

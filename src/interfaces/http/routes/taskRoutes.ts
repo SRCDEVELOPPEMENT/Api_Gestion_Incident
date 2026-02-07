@@ -33,6 +33,7 @@ router.get(
 router.patch(
   '/:id',
   requirePermission('TASK_UPDATE'),
+  upload.array('attachments'),
   TaskController.update
 );
 

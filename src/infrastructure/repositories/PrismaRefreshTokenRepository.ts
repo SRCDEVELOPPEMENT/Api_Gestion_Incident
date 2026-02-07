@@ -6,14 +6,21 @@ import { RefreshToken, CreateRefreshTokenDTO } from '../../domain/entities/Refre
 export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
 
   async create(data: CreateRefreshTokenDTO): Promise<RefreshToken> {
-    // 🔐 HASH DU REFRESH TOKEN (OBLIGATOIRE POUR SQL SERVER)
+    // 🔐 HASH DU REFRESH TOKEN
     const tokenHash = crypto
       .createHash('sha256')
       .update(data.token)
       .digest('hex');
 
-    const token = await prisma.refreshToken.create({
-      data: {
+    const token = await prisma.refreshToken.upsert({
+      where: {
+        tokenHash, // ⚠️ doit être @unique dans schema.prisma
+      },
+      update: {
+        expiresAt: data.expiresAt,
+        revoked: false,
+      },
+      create: {
         tokenHash,
         userId: data.userId,
         expiresAt: data.expiresAt,
@@ -21,7 +28,7 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
       },
     });
 
-    return token as RefreshToken;
+    return token; // ✅ correspond EXACTEMENT à RefreshToken
   }
 
   async findByToken(token: string): Promise<RefreshToken | null> {
@@ -34,17 +41,17 @@ export class PrismaRefreshTokenRepository implements IRefreshTokenRepository {
       where: { tokenHash },
     });
 
-    return found as RefreshToken | null;
+    return found; // ✅ aucun cast nécessaire
   }
 
-  async revoke(id: string): Promise<void> {
+  async revoke(id: number): Promise<void> {
     await prisma.refreshToken.update({
       where: { id },
       data: { revoked: true },
     });
   }
 
-  async revokeAllForUser(userId: string): Promise<void> {
+  async revokeAllForUser(userId: number): Promise<void> {
     await prisma.refreshToken.updateMany({
       where: { userId },
       data: { revoked: true },

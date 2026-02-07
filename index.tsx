@@ -1,12 +1,15 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { createRoot } from 'react-dom/client';
+import { api } from './api'; // ⚠️ adapte le chemin si nécessaire
 
-// 1. Auth Context for managing global session state
+// =======================================================
+// Types
+// =======================================================
 interface User {
   id: string;
   username: string;
   roles: string[];
-  permissions: string[];
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -16,42 +19,26 @@ interface AuthContextType {
   logout: () => void;
 }
 
+// =======================================================
+// Auth Context
+// =======================================================
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
+const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hydrate session on mount using localStorage token
+  // -------------------------------------------------------
+  // Hydratation de session AU DÉMARRAGE
+  // -------------------------------------------------------
   useEffect(() => {
-    const checkSession = async () => {
-      const token = localStorage.getItem('accessToken');
-      
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
+    const hydrateSession = async () => {
       try {
-        // Must explicitly attach Authorization header
-        const res = await fetch('/api/v1/auth/me', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.ok) {
-          const userData = await res.json();
-          setUser(userData);
-        } else {
-          // If token is invalid (401), clear storage
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          setUser(null);
-        }
-      } catch (err) {
-        console.error('Session check failed', err);
+        // 🔥 IMPORTANT : passe par api.ts (refresh auto si besoin)
+        const me = await api.me();
+        setUser(me);
+      } catch {
+        // ❌ Seulement si refresh IMPOSSIBLE
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         setUser(null);
@@ -60,58 +47,30 @@ const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
       }
     };
 
-    checkSession();
+    hydrateSession();
   }, []);
 
+  // -------------------------------------------------------
+  // LOGIN
+  // -------------------------------------------------------
   const login = async (username: string, password: string) => {
-    const res = await fetch('/api/v1/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    
-    if (!res.ok) throw new Error('Login failed');
-    
-    const data = await res.json();
-    
-    // Store tokens strictly in localStorage
-    if (data.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-    }
-    if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-    }
-    
-    // Fetch user details immediately using new token
-    const meRes = await fetch('/api/v1/auth/me', {
-        headers: {
-            'Authorization': `Bearer ${data.accessToken}`
-        }
-    });
-
-    if (meRes.ok) {
-        const userData = await meRes.json();
-        setUser(userData);
-    }
+    const user = await api.login(username, password);
+    setUser(user);
   };
 
+  // -------------------------------------------------------
+  // LOGOUT
+  // -------------------------------------------------------
   const logout = async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
     try {
-        if (refreshToken) {
-            await fetch('/api/v1/auth/logout', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken })
-            });
-        }
-    } catch(e) {
-        console.error(e);
+      await api.logout();
+    } catch {
+      // ignore
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
     }
-    // Always clear local state
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    setUser(null);
   };
 
   return (
@@ -121,94 +80,108 @@ const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   );
 };
 
+// =======================================================
+// Hook
+// =======================================================
 const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return ctx;
 };
 
-// 2. Example Login Component
+// =======================================================
+// Login Component
+// =======================================================
 const Login = () => {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setError(null);
       await login(username, password);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Login failed');
     }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: 20 }}>
       <h2>Login</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Username: </label>
+          <label>Username</label>
           <input value={username} onChange={e => setUsername(e.target.value)} />
         </div>
         <div>
-          <label>Password: </label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
         </div>
-        <button type="submit">Log In</button>
+        <button type="submit">Log in</button>
       </form>
     </div>
   );
 };
 
-// 3. Example Protected Component
+// =======================================================
+// Dashboard (protégé)
+// =======================================================
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    
-    // Manually inject Authorization header for authenticated requests
-    fetch('/api/v1/incidents', {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(res => {
-        if (res.status === 401) {
-            logout(); // Auto logout on invalid token
-            return null;
-        }
-        return res.json();
-    })
-    .then(data => {
-        if(data) setData(data);
-    })
-    .catch(err => console.error(err));
-  }, []);
+    const loadData = async () => {
+      try {
+        // 🔥 PAS de fetch direct — passe par api.ts
+        const incidents = await api.getIncidents();
+        setData(incidents);
+      } catch (err) {
+        console.error(err);
+        // logout UNIQUEMENT si api.ts n’a pas pu refresh
+        logout();
+      }
+    };
+
+    loadData();
+  }, [logout]);
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: 20 }}>
       <h1>Dashboard</h1>
-      <p>Welcome, {user?.username}! You are logged in.</p>
+      <p>Welcome, {user?.username}</p>
       <button onClick={logout}>Logout</button>
       <pre>{JSON.stringify(data, null, 2)}</pre>
     </div>
   );
 };
 
-// 4. Main App Switcher
+// =======================================================
+// App Router
+// =======================================================
 const App = () => {
   const { user, isLoading } = useAuth();
-  
-  if (isLoading) return <div>Loading session...</div>;
+
+  if (isLoading) {
+    return <div>Loading session...</div>;
+  }
 
   return user ? <Dashboard /> : <Login />;
 };
 
-// 5. Bootstrap
+// =======================================================
+// Bootstrap
+// =======================================================
 const root = createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <AuthProvider>

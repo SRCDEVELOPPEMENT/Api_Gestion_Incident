@@ -44,26 +44,12 @@ export class UpdateTaskUseCase {
 
 export class DeleteTaskUseCase {
   constructor(private repo: ITaskRepository) {}
-  async execute(id: string): Promise<void> {
-    return this.repo.delete(id);
+
+  async execute(id: number): Promise<void> {
+    await this.repo.delete(id);
   }
 }
 
-// export class GetTasksByIncidentUseCase {
-//   constructor(private readonly repo: PrismaTaskRepository) {}
-
-//   async execute(
-//     incidentId: number,
-//     skip = 0,
-//     take = 20
-//   ) {
-//     if (!incidentId) {
-//       throw new Error('incidentId is required');
-//     }
-
-//     return this.repo.findByIncident(incidentId, skip, take);
-//   }
-// }
 export class GetTasksByIncidentUseCase {
   constructor(private taskRepository: PrismaTaskRepository) {}
 

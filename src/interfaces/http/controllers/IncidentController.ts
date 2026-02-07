@@ -11,6 +11,11 @@ import { z } from 'zod';
 import { NotFoundError } from '../../../domain/errors/AppError';
 import { CreateIncidentDTO, UpdateIncidentDTO } from '../../../domain/entities/Incident';
 import prisma from '../../../infrastructure/database/prisma';
+import { pathToFileURL } from 'url';
+
+import fs from 'fs/promises';
+import path from 'path';
+import { IncidentPdfService } from '../../../domain/services/IncidentPdfService';
 
 const incidentSchema = z.object({
   description: z.string().min(5),
@@ -41,7 +46,8 @@ const incidentSchema = z.object({
   ),
   dueDate: z.string(),
   urgency: z.enum(['Faible', 'Moyenne', 'Haute', 'Immédiate']),
-  criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique'])
+  criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique']),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'CANCELLED']).optional(),
 });
 
 export class IncidentController {
@@ -182,4 +188,273 @@ export class IncidentController {
 
       return res.json(attachments);
   }
+
+  // static async deleteAttachment(req: Request, res: Response, next: NextFunction) {
+  //   try {
+  //     const incidentId = Number(req.params.incidentId);
+  //     const attachmentId = Number(req.params.attachmentId);
+
+  //     // Vérifier que la PJ existe et appartient bien à l’incident
+  //     const attachment = await prisma.attachment.findFirst({
+  //       where: {
+  //         id: attachmentId,
+  //         incidentId,
+  //       },
+  //     });
+
+  //     if (!attachment) {
+  //       return res.status(404).json({
+  //         status: 'error',
+  //         code: 'NOT_FOUND',
+  //         message: 'Attachment not found for this incident',
+  //       });
+  //     }
+
+  //     await prisma.attachment.delete({
+  //       where: { id: attachmentId },
+  //     });
+
+  //     return res.status(204).send();
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
+
+  static async deleteAttachment(req: Request, res: Response, next: NextFunction) {
+    try {
+      const incidentId = Number(req.params.incidentId);
+      const attachmentId = Number(req.params.attachmentId);
+
+      const attachment = await prisma.attachment.findFirst({
+        where: { id: attachmentId, incidentId },
+      });
+
+      if (!attachment) {
+        return res.status(404).json({ message: 'Attachment not found' });
+      }
+
+      // 🔥 SUPPRESSION FICHIER
+      if (attachment.url) {
+        const absolutePath = path.resolve(attachment.url);
+        await fs.unlink(absolutePath).catch(() => {
+          // optionnel : log si fichier déjà absent
+        });
+      }
+
+      // 🔥 SUPPRESSION DB
+      await prisma.attachment.delete({
+        where: { id: attachmentId },
+      });
+
+      return res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
+// static async generatePdf(req: Request, res: Response, next: NextFunction) {
+//   try {
+//     const incidentId = Number(req.params.id);
+
+//     const incident = await prisma.incident.findUnique({
+//       where: { id: incidentId },
+//     });
+
+//     if (!incident) {
+//       return res.status(404).json({ message: 'Incident introuvable' });
+//     }
+
+//     const templatePath = path.join(
+//       process.cwd(),
+//       'templates/incident-report.html'
+//     );
+
+//     const template = await fs.readFile(templatePath, 'utf8');
+
+//     const html = template
+//       // 🔹 En-tête / Références
+//       .replace('{{reference}}', `INC${incident.id}`)
+//       .replace('{{createdAt}}', incident.createdAt.toISOString().slice(0, 10))
+//       .replace('{{dueDate}}', incident.dueDate.toISOString().slice(0, 10))
+
+//       // 🔹 Acteurs / Services
+//       .replace(
+//         '{{creator}}',
+//         incident.reporterId ? String(incident.reporterId) : '—'
+//       )
+//       .replace('{{emitterService}}', incident.scope ?? '—')
+//       .replace(
+//         '{{receiverService}}',
+//         incident.processDomainId ? String(incident.processDomainId) : '—'
+//       )
+
+//       // 🔹 Sites / Numéros
+//       .replace('{{incidentSite}}', '—')
+//       .replace('{{dsNumber}}', String(incident.id))
+
+//       // 🔹 Statut / Priorité
+//       .replace('{{status}}', incident.status)
+//       .replace('{{priority}}', incident.urgency)
+
+//       // 🔹 Classification
+//       .replace(
+//         '{{category}}',
+//         incident.categoryId ? String(incident.categoryId) : '—'
+//       )
+//       .replace(
+//         '{{process}}',
+//         incident.processDomainId ? String(incident.processDomainId) : '—'
+//       )
+
+//       // 🔹 Contenu métier
+//       .replace('{{description}}', incident.description)
+//       .replace('{{scope}}', incident.scope ?? '—')
+//       .replace(
+//         '{{cause}}',
+//         incident.subCategoryId ? String(incident.subCategoryId) : '—'
+//       )
+
+//       // 🔹 Sections libres
+//       .replace('{{actions}}', '—')
+//       .replace('{{proposal}}', '—')
+//       .replace('{{observation}}', '—')
+
+//       // 🔹 Logo
+//       .replace(
+//         '{{LOGO_URL}}',
+//         'file://' + path.join(process.cwd(), 'assets/logo.png')
+//       );
+
+//     const outputPath = path.join(
+//       process.cwd(),
+//       'uploads',
+//       'incidents',
+//       `incident_${incident.id}.pdf`
+//     );
+
+//     await IncidentPdfService.generate(html, outputPath);
+
+//     return res.sendFile(outputPath);
+//   } catch (error) {
+//     next(error);
+//   }
+// }
+
+
+static async generatePdf(req: Request, res: Response, next: NextFunction) {
+  try {
+    const incidentId = req.params.id;
+
+    // ✅ UTILISER LE REPOSITORY (PAS PRISMA DIRECT)
+    const repo = new PrismaIncidentRepository();
+    const incident = await repo.findById(incidentId);
+
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident introuvable' });
+    }
+
+    const templatePath = path.join(
+      process.cwd(),
+      'templates/incident-report.html'
+    );
+
+    const template = await fs.readFile(templatePath, 'utf8');
+
+    // 🔹 Nom & Prénom = IncidentUser(s)
+    const incidentUsers =
+      incident.assignedUsers && incident.assignedUsers.length > 0
+        ? incident.assignedUsers
+            .map(user => `${user.username ?? ''}`.trim())
+            .join(', ')
+        : '—';
+
+    // 🔹 Récepteur Incident = IncidentSite(s)
+    const receiverIncident =
+      incident.impactedSites && incident.impactedSites.length > 0
+        ? incident.impactedSites.map(site => site.name).join(', ')
+        : '—';
+        
+    // ======================================================
+    // 🔥 ICI : CONSTRUCTION DE L’URL DU LOGO (OBLIGATOIRE)
+    // ======================================================
+    const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
+    //const logoUrl = pathToFileURL(logoPath).href;
+    const logoBuffer = await fs.readFile(logoPath);
+    const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+    // ======================================================
+
+    const html = template
+      // ======================
+      // EN-TÊTE
+      // ======================
+      .replace('{{reference}}', incident.reference)
+      .replace('{{createdAt}}', incident.createdAt.toISOString().slice(0, 10))
+      .replace('{{dueDate}}', incident.dueDate.toISOString().slice(0, 10))
+
+      // ======================
+      // ACTEURS / SERVICES
+      // ======================
+      .replace('{{creator}}', incidentUsers)
+      .replace('{{emitterService}}', '—')
+      .replace('{{receiverService}}', receiverIncident) // ✅ ICI
+
+      // ======================
+      // SITES / NUMÉROS
+      // ======================
+      .replace(
+        '{{incidentSite}}',
+        incident.impactedSites.length > 0
+          ? incident.impactedSites.map(s => s.name).join(', ')
+          : '—'
+      )
+      //.replace('{{dsNumber}}', incident.reference)
+
+      // ======================
+      // STATUT / PRIORITÉ
+      // ======================
+      .replace('{{status}}', incident.status)
+      .replace('{{priority}}', incident.urgency)
+
+      // ======================
+      // CLASSIFICATION MÉTIER
+      // ======================
+      .replace('{{category}}', incident.category ?? '—')
+      .replace('{{process}}', incident.processDomain ?? '—')
+      .replace('{{cause}}', incident.subCategory ?? '—')
+
+      // ======================
+      // CONTENU
+      // ======================
+      .replace('{{description}}', incident.description)
+      .replace('{{scope}}', incident.scope ?? '—')
+
+      // ======================
+      // SECTIONS LIBRES
+      // ======================
+      .replace('{{actions}}', '—')
+      .replace('{{proposal}}', '—')
+      .replace('{{observation}}', '—')
+
+      // ======================
+      // LOGO
+      // ======================
+      // 🔥 UTILISATION DE logoUrl ICI
+      .replace('{{LOGO_URL}}', logoBase64);
+
+    const outputPath = path.join(
+      process.cwd(),
+      'uploads',
+      'incidents',
+      `incident_${incident.id}.pdf`
+    );
+
+    await IncidentPdfService.generate(html, outputPath);
+
+    return res.sendFile(outputPath);
+  } catch (error) {
+    next(error);
+  }
+}
+
 }

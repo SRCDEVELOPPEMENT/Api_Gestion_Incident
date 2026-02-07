@@ -5,7 +5,8 @@ import {
     GetAllTasksUseCase, 
     GetTasksByIncidentUseCase, 
     UpdateTaskUseCase, 
-    DeleteTaskUseCase 
+    DeleteTaskUseCase, 
+    GetTaskByIdUseCase
 } from '../../../application/usecases/TaskUseCases';
 import { z } from 'zod';
 
@@ -78,10 +79,14 @@ export class TaskController {
     }
 
     static async delete(req: Request, res: Response) {
-        const repo = new PrismaTaskRepository();
-        const useCase = new DeleteTaskUseCase(repo);
-        await useCase.execute((req as any).params.id);
-        return (res as any).status(204).send();
+            try {
+            const repo = new PrismaTaskRepository();
+            const useCase = new DeleteTaskUseCase(repo);
+            await useCase.execute(Number(req.params.id));
+            return (res as any).status(204).send();
+        } catch (error: any) {
+            return (res as any).status(400).json({ error: error.message });
+        }
     }
 
     static async getByIncident(req: Request, res: Response) {

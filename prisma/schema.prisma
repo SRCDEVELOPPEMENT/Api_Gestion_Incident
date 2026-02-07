@@ -92,6 +92,7 @@ model Site {
   user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   incidentSites IncidentSite[]
+  impactedIncidents IncidentImpactedSite[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -192,13 +193,13 @@ model Incident {
 
   subCategoryId Int
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
+  
   processDomainId Int?
   processDomain   Process?  @relation(fields: [processDomainId], references: [id])
 
   tasks         Task[]
   incidentSites   IncidentSite[]
-  incidentImpactedSites  IncidentImpactedSite[]
+  incidentImpactedSites IncidentImpactedSite[]  // ✅ OBLIGATOIRE
   incidentUsers   IncidentUser[]
   attachments   Attachment[]
 
@@ -278,8 +279,8 @@ model IncidentImpactedSite {
   incidentId Int
   siteId     Int
 
-  incident Incident @relation(fields: [incidentId], references: [id])
-  site     Site     @relation(fields: [siteId], references: [id])
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, siteId])
 }

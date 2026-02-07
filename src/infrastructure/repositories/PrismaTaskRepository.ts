@@ -114,17 +114,36 @@ export class PrismaTaskRepository implements ITaskRepository {
     return task as unknown as Task;
   }
 
-  async delete(id: string): Promise<void> {
-    await prisma.task.update({ 
-        where: { id: Number(id) },
-        data: { deletedAt: new Date() }
+  async delete(id: number): Promise<void> {
+    await prisma.task.delete({
+      where: { id }
     });
   }
+  // async delete(id: number): Promise<void> {
+  //   await prisma.task.update({ 
+  //       where: { id: Number(id) },
+  //       data: { deletedAt: new Date() }
+  //   });
+  // }
 
+  // async findByIncident(incidentId: number) {
+  //   return prisma.task.findMany({
+  //     where: {
+  //       incidentId: incidentId,
+  //     },
+  //     orderBy: {
+  //       createdAt: 'desc',
+  //     },
+  //     include: {
+  //       attachments: true,
+  //     },
+  //   });
+  // }
   async findByIncident(incidentId: number) {
     return prisma.task.findMany({
       where: {
-        incidentId: incidentId,
+        incidentId,
+        deletedAt: null,   // 🔴 OBLIGATOIRE
       },
       orderBy: {
         createdAt: 'desc',

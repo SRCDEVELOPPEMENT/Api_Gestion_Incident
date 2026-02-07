@@ -2,8 +2,68 @@ import { IIncidentRepository } from '../../domain/repositories/IIncidentReposito
 import { CreateIncidentDTO, UpdateIncidentDTO, Incident } from '../../domain/entities/Incident';
 import { generateIncidentReference } from '../utils/incidentReference';
 
+// export class CreateIncidentUseCase {
+//   constructor(private readonly repo: IIncidentRepository) {}
+
+//   async execute(
+//     data: CreateIncidentDTO,
+//     reporterId: string,
+//     files?: Express.Multer.File[]
+//   ): Promise<Incident> {
+
+//     const reference = await generateIncidentReference();
+//     // 1️⃣ Sécurité
+//     if (!reporterId) {
+//       throw new Error('Utilisateur non authentifié');
+//     }
+
+//     // 2️⃣ Validations métier
+//     if (!data.siteIds || data.siteIds.length === 0) {
+//       throw new Error('Au moins un site est requis');
+//     }
+
+//     if (!data.categoryId) {
+//       throw new Error('Catégorie obligatoire');
+//     }
+
+//     if (!data.subCategoryId) {
+//       throw new Error('Sous-catégorie obligatoire');
+//     }
+
+//     const dueDate = new Date(data.dueDate);
+//     if (isNaN(dueDate.getTime())) {
+//       throw new Error('Date d’échéance invalide');
+//     }
+
+//     if (dueDate < new Date()) {
+//       throw new Error('La date d’échéance ne peut pas être dans le passé');
+//     }
+
+//     if (data.otherSubCategory && data.otherSubCategory.trim().length < 3) {
+//       throw new Error('La précision de la sous-catégorie est trop courte');
+//     }
+
+//     const impactedSiteIds = Array.isArray(data.impactedSiteIds)
+//       ? data.impactedSiteIds
+//       : data.impactedSiteIds
+//         ? [data.impactedSiteIds]
+//         : [];
+
+//     // 3️⃣ Persistance
+//     return this.repo.create(
+//       {
+//         ...data,
+//         impactedSiteIds,
+//         reference,
+//       },
+//       reporterId,
+//       files 
+//     );
+//   }
+// }
+
 export class CreateIncidentUseCase {
-  constructor(private readonly repo: IIncidentRepository) {}
+  constructor(private readonly repo: IIncidentRepository) { }
 
   async execute(
     data: CreateIncidentDTO,
@@ -12,6 +72,7 @@ export class CreateIncidentUseCase {
   ): Promise<Incident> {
 
     const reference = await generateIncidentReference();
+
     // 1️⃣ Sécurité
     if (!reporterId) {
       throw new Error('Utilisateur non authentifié');
@@ -26,8 +87,27 @@ export class CreateIncidentUseCase {
       throw new Error('Catégorie obligatoire');
     }
 
-    if (!data.subCategoryId) {
-      throw new Error('Sous-catégorie obligatoire');
+    // 🔴 RÈGLE MÉTIER CENTRALE
+    if (!data.subCategoryId && !data.otherSubCategory) {
+      throw new Error('Sous-catégorie ou précision obligatoire');
+    }
+
+    if (data.subCategoryId && data.otherSubCategory) {
+      throw new Error(
+        'subCategoryId et otherSubCategory sont mutuellement exclusifs'
+      );
+    }
+
+    if (data.otherSubCategory) {
+      const trimmed = data.otherSubCategory.trim();
+
+      if (trimmed.length < 3) {
+        throw new Error('La précision de la sous-catégorie est trop courte');
+      }
+
+      // Normalisation
+      data.otherSubCategory = trimmed;
+      data.subCategoryId = undefined;
     }
 
     const dueDate = new Date(data.dueDate);
@@ -39,18 +119,21 @@ export class CreateIncidentUseCase {
       throw new Error('La date d’échéance ne peut pas être dans le passé');
     }
 
-    if (data.otherSubCategory && data.otherSubCategory.trim().length < 3) {
-      throw new Error('La précision de la sous-catégorie est trop courte');
-    }
+    const impactedSiteIds = Array.isArray(data.impactedSiteIds)
+      ? data.impactedSiteIds
+      : data.impactedSiteIds
+        ? [data.impactedSiteIds]
+        : [];
 
     // 3️⃣ Persistance
     return this.repo.create(
       {
         ...data,
+        impactedSiteIds,
         reference,
       },
       reporterId,
-      files 
+      files
     );
   }
 }
@@ -58,7 +141,7 @@ export class CreateIncidentUseCase {
 /* ------------------------------------------------------------------ */
 
 export class GetAllIncidentsUseCase {
-  constructor(private repo: IIncidentRepository) {}
+  constructor(private repo: IIncidentRepository) { }
 
   async execute(params: {
     page: number;
@@ -77,22 +160,15 @@ export class GetAllIncidentsUseCase {
 }
 
 export class GetIncidentByIdUseCase {
-  constructor(private repo: IIncidentRepository) {}
+  constructor(private repo: IIncidentRepository) { }
 
   async execute(id: string): Promise<Incident | null> {
     return this.repo.findById(id);
   }
 }
 
-// export class UpdateIncidentUseCase {
-//   constructor(private repo: IIncidentRepository) {}
-
-//   async execute(id: string, data: UpdateIncidentDTO): Promise<Incident> {
-//     return this.repo.update(id, data);
-//   }
-// }
 export class UpdateIncidentUseCase {
-  constructor(private readonly repo: IIncidentRepository) {}
+  constructor(private readonly repo: IIncidentRepository) { }
 
   async execute(
     id: string,
@@ -104,7 +180,7 @@ export class UpdateIncidentUseCase {
 }
 
 export class DeleteIncidentUseCase {
-  constructor(private repo: IIncidentRepository) {}
+  constructor(private repo: IIncidentRepository) { }
 
   async execute(id: string): Promise<void> {
     return this.repo.delete(id);

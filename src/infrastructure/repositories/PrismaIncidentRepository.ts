@@ -42,13 +42,13 @@ export class PrismaIncidentRepository implements IIncidentRepository {
             }))
           },
 
-          // 🔗 Sites concernés (NOUVEAU)
-          incidentImpactedSites: {
-            create: impactedSiteIds.map(siteId => ({
-              siteId: Number(siteId)
-            }))
-          },
-
+          ...(impactedSiteIds && impactedSiteIds.length > 0 && {
+            incidentImpactedSites: {
+              create: impactedSiteIds.map(siteId => ({
+                siteId: Number(siteId)
+              }))
+            }
+          }),
           // ✅ relation Incident ↔ Users assignés (optionnel)
           ...(assignedUserIds && assignedUserIds.length > 0 && {
             incidentUsers: {
@@ -107,6 +107,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         incidentSites: {
           include: { site: true }
         },
+        incidentImpactedSites: { include: { site: true } }, // ✅ AJOUT
         incidentUsers: {
           include: { user: true }
         },
@@ -159,10 +160,11 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         category: true,
         processDomain: true,
         subCategory: true,
-        subProcess: true, 
+        subProcess: true,
         incidentSites: {
           include: { site: true }
         },
+        incidentImpactedSites: { include: { site: true } }, // ✅ AJOUT
         incidentUsers: {
           include: { user: true }
         },
@@ -180,82 +182,192 @@ export class PrismaIncidentRepository implements IIncidentRepository {
   }
 
 
-  async update(id: string, data: UpdateIncidentDTO, files?: Express.Multer.File[]): Promise<Incident> {
+  // async update(id: string, data: UpdateIncidentDTO, files?: Express.Multer.File[]): Promise<Incident> {
+  //   const { siteIds, impactedSiteIds, assignedUserIds, attachments, ...rest } = data;
+
+  //   const updateData: Prisma.IncidentUncheckedUpdateInput = {
+  //     ...(rest.description && { description: rest.description }),
+  //     ...(rest.scope !== undefined && { scope: rest.scope }),
+  //     ...(rest.urgency && { urgency: rest.urgency }),
+  //     ...(rest.criticality && { criticality: rest.criticality }),
+
+  //     ...(rest.subProcessId && { subProcessId: Number(rest.subProcessId) }),
+  //     ...(rest.subCategoryId && { subCategoryId: Number(rest.subCategoryId) }),
+  //     ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
+  //     ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
+  //     ...(rest.status && { status: rest.status }),
+  //     ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
+  //   };
+  //   // const updateData: Prisma.IncidentUpdateInput = {
+  //   //   ...rest
+  //   // };
+
+  //   // 🔗 Incident ↔ Sites
+  //   if (siteIds) {
+  //     updateData.incidentSites = {
+  //       deleteMany: {},
+  //       create: siteIds.map(siteId => ({
+  //         site: {
+  //           connect: { id: Number(siteId) }
+  //         }
+  //       }))
+  //     };
+  //   }
+
+  //   // 🔗 Sites concernés (NOUVEAU)
+  //   // if (impactedSiteIds) {
+  //   //   updateData.incidentImpactedSites = {
+  //   //     deleteMany: {},
+  //   //     create: impactedSiteIds.map(siteId => ({
+  //   //       site: { connect: { id: Number(siteId) } }
+  //   //     }))
+  //   //   };
+  //   // }
+  //   // if (impactedSiteIds && impactedSiteIds.length > 0) {
+  //   //   updateData.incidentImpactedSites = {
+  //   //     deleteMany: {},
+  //   //     create: impactedSiteIds.map(siteId => ({
+  //   //       siteId: Number(siteId)
+  //   //     }))
+  //   //   };
+  //   // }
+  //   if (impactedSiteIds) {
+  //     updateData.incidentImpactedSites = {
+  //       deleteMany: {},
+  //       create: impactedSiteIds.map(siteId => ({
+  //         siteId: Number(siteId)
+  //       }))
+  //     };
+  //   }
+
+  //   // 🔗 Incident ↔ Users assignés
+  //   if (assignedUserIds) {
+  //     updateData.incidentUsers = {
+  //       deleteMany: {},
+  //       create: assignedUserIds.map(userId => ({
+  //         user: {
+  //           connect: { id: Number(userId) }
+  //         }
+  //       }))
+  //     };
+  //   }
+
+  //   // 📎 Pièces jointes
+  //   // if (attachments && attachments.length > 0) {
+  //   //   updateData.attachments = {
+  //   //     create: attachments.map(att => ({
+  //   //       fileName: att.fileName,
+  //   //       url: att.url,
+  //   //       uploadedAt: new Date()
+  //   //     }))
+  //   //   };
+  //   // }
+
+  //   // 📎 Pièces jointes depuis fichiers (Multer)
+  //   // if (files && files.length > 0) {
+  //   //   updateData.attachments = {
+  //   //     ...(updateData.attachments ?? {}),
+  //   //     create: [
+  //   //       ...(attachments ?? []).map(att => ({
+  //   //         fileName: att.fileName,
+  //   //         url: att.url,
+  //   //         uploadedAt: new Date()
+  //   //       })),
+  //   //       ...files.map(file => ({
+  //   //         fileName: file.originalname,
+  //   //         url: `/uploads/incidents/${file.filename}`,
+  //   //         uploadedAt: new Date()
+  //   //       }))
+  //   //     ]
+  //   //   };
+  //   // }
+    
+  //   const updated = await prisma.incident.update({
+  //     where: { id: (Number(id)) },
+  //     data: updateData,
+  //     include: {
+  //       incidentSites: { include: { site: true } },
+  //       incidentImpactedSites: { include: { site: true } }, // ✅
+  //       incidentUsers: { include: { user: true } },
+  //       attachments: true,
+  //       tasks: true
+  //     }
+  //   });
+
+  //   return this.mapToDomain(updated);
+  // }
+
+    async update(
+    id: string,
+    data: UpdateIncidentDTO,
+    files?: Express.Multer.File[]
+  ): Promise<Incident> {
+
     const { siteIds, impactedSiteIds, assignedUserIds, attachments, ...rest } = data;
 
-    const updateData: Prisma.IncidentUpdateInput = {
-      ...rest
+    const updateData: Prisma.IncidentUncheckedUpdateInput = {
+      ...(rest.status && { status: rest.status }), // ✅ CRITIQUE
+      ...(rest.description && { description: rest.description }),
+      ...(rest.scope !== undefined && { scope: rest.scope }),
+      ...(rest.urgency && { urgency: rest.urgency }),
+      ...(rest.criticality && { criticality: rest.criticality }),
+      ...(rest.subProcessId && { subProcessId: Number(rest.subProcessId) }),
+      ...(rest.subCategoryId && { subCategoryId: Number(rest.subCategoryId) }),
+      ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
+      ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
+      ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
     };
 
-    // 🔗 Incident ↔ Sites
     if (siteIds) {
       updateData.incidentSites = {
         deleteMany: {},
         create: siteIds.map(siteId => ({
-          site: {
-            connect: { id: Number(siteId) }
-          }
-        }))
-      };
-    }
-
-    // 🔗 Sites concernés (NOUVEAU)
-    if (impactedSiteIds) {
-      updateData.incidentImpactedSites = {
-        deleteMany: {},
-        create: impactedSiteIds.map(siteId => ({
           site: { connect: { id: Number(siteId) } }
         }))
       };
     }
 
-    // 🔗 Incident ↔ Users assignés
+    if (impactedSiteIds) {
+      updateData.incidentImpactedSites = {
+        deleteMany: {},
+        create: impactedSiteIds.map(siteId => ({
+          siteId: Number(siteId)
+        }))
+      };
+    }
+
     if (assignedUserIds) {
       updateData.incidentUsers = {
         deleteMany: {},
         create: assignedUserIds.map(userId => ({
-          user: {
-            connect: { id: Number(userId) }
-          }
+          user: { connect: { id: Number(userId) } }
         }))
       };
     }
 
-    // 📎 Pièces jointes
-    if (attachments && attachments.length > 0) {
-      updateData.attachments = {
-        create: attachments.map(att => ({
-          fileName: att.fileName,
-          url: att.url,
-          uploadedAt: new Date()
-        }))
-      };
+    const attachmentCreates = [
+      ...(attachments ?? []).map(att => ({
+        fileName: att.fileName,
+        url: att.url,
+        uploadedAt: new Date()
+      })),
+      ...(files ?? []).map(file => ({
+        fileName: file.originalname,
+        url: `/uploads/incidents/${file.filename}`,
+        uploadedAt: new Date()
+      }))
+    ];
+
+    if (attachmentCreates.length > 0) {
+      updateData.attachments = { create: attachmentCreates };
     }
 
-    // 📎 Pièces jointes depuis fichiers (Multer)
-    if (files && files.length > 0) {
-      updateData.attachments = {
-        ...(updateData.attachments ?? {}),
-        create: [
-          ...(attachments ?? []).map(att => ({
-            fileName: att.fileName,
-            url: att.url,
-            uploadedAt: new Date()
-          })),
-          ...files.map(file => ({
-            fileName: file.originalname,
-            url: `/uploads/incidents/${file.filename}`,
-            uploadedAt: new Date()
-          }))
-        ]
-      };
-    }
     const updated = await prisma.incident.update({
-      where: { id: (Number(id)) },
+      where: { id: Number(id) },
       data: updateData,
       include: {
         incidentSites: { include: { site: true } },
-        incidentImpactedSites: { include: { site: true } }, // ✅
+        incidentImpactedSites: { include: { site: true } },
         incidentUsers: { include: { user: true } },
         attachments: true,
         tasks: true
@@ -265,57 +377,6 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     return this.mapToDomain(updated);
   }
 
-  // async update(
-  //   id: string,
-  //   data: UpdateIncidentDTO,
-  //   files?: Express.Multer.File[]
-  // ): Promise<Incident> {
-
-  //   const { siteIds, assignedUserIds, ...rest } = data;
-
-  //   const updateData: any = {
-  //     ...rest,
-  //   };
-
-  //   if (siteIds) {
-  //     updateData.incidentSites = {
-  //       deleteMany: {},
-  //       create: siteIds.map(siteId => ({ siteId: Number(siteId) }))
-  //     };
-  //   }
-
-  //   if (assignedUserIds) {
-  //     updateData.incidentUsers = {
-  //       deleteMany: {},
-  //       create: assignedUserIds.map(userId => ({ userId: Number(userId) }))
-  //     };
-  //   }
-
-  //   if (files && files.length > 0) {
-  //     updateData.attachments = {
-  //       create: files.map(file => ({
-  //         fileName: file.originalname,
-  //         url: `/uploads/incidents/${file.filename}`,
-  //         mimeType: file.mimetype,
-  //         size: file.size,
-  //         uploadedAt: new Date()
-  //       }))
-  //     };
-  //   }
-
-  //   const updated = await prisma.incident.update({
-  //     where: { id },
-  //     data: updateData,
-  //     include: {
-  //       incidentSites: { include: { site: true } },
-  //       incidentUsers: { include: { user: true } },
-  //       attachments: true,
-  //       tasks: true
-  //     }
-  //   });
-
-  //   return this.mapToDomain(updated);
-  // }
 
   async delete(id: string): Promise<void> {
     await prisma.incident.update({
@@ -359,7 +420,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
 
       // ✅ NOUVEAU
       impactedSites:
-      prismaIncident.incidentImpactedSites?.map((i: any) => i.site) || [],
+        prismaIncident.incidentImpactedSites?.map((i: any) => i.site) || [],
       assignedUsers: prismaIncident.incidentUsers?.map((i: any) => i.user) || [],
       attachments: prismaIncident.attachments || []
     };

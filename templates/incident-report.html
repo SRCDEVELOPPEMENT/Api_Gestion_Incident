@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fiche de Déclaration Incident</title>
+  <style>
+  /* ===========================
+     GLOBAL
+  ============================ */
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    color: #000;
+    margin: 20px;
+    line-height: 1.4;
+  }
+
+  /* ===========================
+     HEADER
+  ============================ */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #2e7d32;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .header img {
+    height: 48px;
+  }
+
+  .header-right {
+    text-align: right;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  /* ===========================
+     TITRE
+  ============================ */
+  h1 {
+    text-align: center;
+    font-size: 16px;
+    margin: 16px 0 18px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ===========================
+     TABLES
+  ============================ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+  }
+
+  td {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    vertical-align: top;
+    font-size: 12px;
+  }
+
+  .label {
+    font-weight: bold;
+    width: 22%;
+    background-color: #f2f2f2;
+    white-space: nowrap;
+  }
+
+  /* ===========================
+     SECTIONS TEXTE
+  ============================ */
+  .section-title {
+    font-weight: bold;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    text-decoration: underline;
+  }
+
+  .section-content {
+    margin-bottom: 10px;
+    min-height: 18px;
+  }
+
+  /* ===========================
+     NOTE IMPORTANTE
+  ============================ */
+  .note {
+    font-size: 10px;
+    color: #b71c1c;
+    margin: 8px 0 12px 0;
+  }
+
+  /* ===========================
+     SIGNATURES
+  ============================ */
+  .signature {
+    margin-top: 18px;
+  }
+
+  .signature td {
+    height: 60px;
+    text-align: center;
+    font-size: 10px;
+    vertical-align: bottom;
+  }
+
+  /* ===========================
+     PRINT FIXES (PUPPETEER)
+  ============================ */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+</style>
+
+</head>
+
+<body>
+  <div class="header">
+    <img src="{{LOGO_URL}}" />
+    <div class="header-right">
+      <strong>SOREPCO SA</strong><br/>
+      Commerce Général - Import - Export<br/>
+      Douala - Cameroun
+    </div>
+  </div>
+
+  <h1>FICHE DE DÉCLARATION INCIDENT {{reference}}</h1>
+
+  <table>
+    <tr>
+      <td class="label">Émetteur Incident</td>
+      <td>{{emitterService}}</td>
+      <td class="label">Récepteur Incident</td>
+      <td>{{receiverService}}</td>
+    </tr>
+    <tr>
+      <td class="label">Date Déclaration</td>
+      <td>{{createdAt}}</td>
+      <td class="label">Date d’Échéance</td>
+      <td>{{dueDate}}</td>
+    </tr>
+    <tr>
+      <td class="label">Nom & Prénom</td>
+      <td>{{creator}}</td>
+      <td class="label">Site / Service Émetteur</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="label">Site Incident</td>
+      <td>{{incidentSite}}</td>
+      <td class="label">Numéro de DS</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td class="label">Statut</td>
+      <td>{{status}}</td>
+      <td class="label">Priorité</td>
+      <td>{{priority}}</td>
+    </tr>
+    <tr>
+      <td class="label">Catégorie Incident</td>
+      <td>{{category}}</td>
+      <td class="label">Processus Impacté</td>
+      <td>{{process}}</td>
+    </tr>
+  </table>
+
+  <p class="note">
+    NB : Les incidents reliés au budget doivent être signés par le responsable du service contrôle de gestion.
+  </p>
+
+  <p class="section-title">Déclaration de l’incident (Acteur et conditions)</p>
+  <p>{{description}}</p>
+
+  <p class="section-title">Cause probable</p>
+  <p>{{cause}}</p>
+
+  <p class="section-title">Périmètre</p>
+  <p>{{scope}}</p>
+
+  <p class="section-title">Détail des travaux réalisés / Actions menées</p>
+  <p>{{actions}}</p>
+
+  <p class="section-title">Observation</p>
+  <p>{{observation}}</p>
+
+  <p class="section-title">Proposition de tâche</p>
+  <p>{{proposal}}</p>
+
+  <table class="signature">
+    <tr>
+      <td>Visa<br/>Constateur</td>
+      <td>Visa<br/>Responsable Sce/Site</td>
+      <td>Visa<br/>REX</td>
+      <td>Visa<br/>REXA</td>
+      <td>Visa<br/>Resp. RH</td>
+      <td>Visa<br/>RACI</td>
+    </tr>
+  </table>
+</body>
+</html>
