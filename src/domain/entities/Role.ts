@@ -1,8 +1,11 @@
+import { Permission } from './Permission';
+
 export interface Role {
-  id: number;
+  id: string;
   name: string;
+  description?: string | null;
+  permissions?: Permission[];
 }
 
-export type CreateRoleDTO = Pick<Role, 'name'>;
-
-export type UpdateRoleDTO = Partial<CreateRoleDTO>;
+export type CreateRoleDTO = Pick<Role, 'name' | 'description'>;
+export type UpdateRoleDTO = Partial<Pick<Role, 'name' | 'description'>>;

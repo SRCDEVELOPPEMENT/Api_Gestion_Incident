@@ -20,6 +20,8 @@ import { requestLogger, auditLogger } from './interfaces/http/middlewares/loggin
 import { globalLimiter } from './interfaces/http/middlewares/securityMiddleware';
 import { HealthController } from './interfaces/http/controllers/HealthController';
 import { bootstrapAdmin } from './bootstrap/admin.bootstrap';
+import roleRoutes from './interfaces/http/routes/roleRoutes';
+import permissionRoutes from './interfaces/http/routes/permissionRoutes';
 
 dotenv.config();
 
@@ -95,6 +97,8 @@ app.use('/api/v1/processes', processRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/sub-categories', subCategoryRoutes);
 app.use('/api/v1/sub-processes', subProcessRoutes);
+app.use('/api/v1/roles', roleRoutes);
+app.use('/api/v1/permissions', permissionRoutes);
 
 /* -------------------------------------------------- */
 /* 5. 404 & erreurs                                   */
