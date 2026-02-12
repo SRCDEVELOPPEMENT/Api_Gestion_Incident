@@ -1,87 +1,72 @@
 import { Request, Response, NextFunction } from 'express';
-import { z } from 'zod';
-import { 
-    AssignPermissionToRoleUseCase, 
-    RevokePermissionFromRoleUseCase, 
-    GetPermissionsByRoleUseCase, 
-    GetRolesByPermissionUseCase 
-} from '../../../application/usecases/RolePermissionUseCases';
 import { PrismaRolePermissionRepository } from '../../../infrastructure/repositories/PrismaRolePermissionRepository';
 import { PrismaRoleRepository } from '../../../infrastructure/repositories/PrismaRoleRepository';
 import { PrismaPermissionRepository } from '../../../infrastructure/repositories/PrismaPermissionRepository';
-
-const rolePermissionSchema = z.object({
-    roleId: z.string().uuid(),
-    permissionId: z.string().uuid()
-});
+import {
+  GetPermissionsByRoleUseCase,
+  UpdateRolePermissionsUseCase
+} from '../../../application/usecases/RolePermissionUseCases';
 
 export class RolePermissionController {
-  
-  static async assign(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { roleId, permissionId } = rolePermissionSchema.parse((req as any).body);
-      
-      const rolePermRepo = new PrismaRolePermissionRepository();
-      const roleRepo = new PrismaRoleRepository();
-      const permRepo = new PrismaPermissionRepository();
-      
-      const useCase = new AssignPermissionToRoleUseCase(rolePermRepo, roleRepo, permRepo);
-      await useCase.execute(roleId, permissionId);
-      
-      return (res as any).status(201).json({ message: 'Permission assigned to role successfully' });
-    } catch (error) {
-      (next as any)(error);
-    }
-  }
 
-  static async revoke(req: Request, res: Response, next: NextFunction) {
+  /**
+   * GET /api/v1/roles/:id/permissions
+   */
+  static async getPermissionsByRole(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      // Allows passing IDs via body (standard) or query params (convenience for DELETE)
-      const data = (req as any).body.roleId ? (req as any).body : (req as any).query;
-      const { roleId, permissionId } = rolePermissionSchema.parse(data);
-      
-      const rolePermRepo = new PrismaRolePermissionRepository();
-      const roleRepo = new PrismaRoleRepository();
-      const permRepo = new PrismaPermissionRepository();
-      
-      const useCase = new RevokePermissionFromRoleUseCase(rolePermRepo, roleRepo, permRepo);
-      await useCase.execute(roleId, permissionId);
-      
-      return (res as any).status(204).send();
-    } catch (error) {
-      (next as any)(error);
-    }
-  }
+      const roleId = Number(req.params.id);
+      if (Number.isNaN(roleId)) {
+        return res.status(400).json({ message: 'Invalid roleId' });
+      }
 
-  static async getPermissionsByRole(req: Request, res: Response, next: NextFunction) {
-    try {
-      const roleId = (req as any).params.roleId;
-      
-      const rolePermRepo = new PrismaRolePermissionRepository();
-      const roleRepo = new PrismaRoleRepository();
-      
-      const useCase = new GetPermissionsByRoleUseCase(rolePermRepo, roleRepo);
+      const useCase = new GetPermissionsByRoleUseCase(
+        new PrismaRolePermissionRepository(),
+        new PrismaRoleRepository()
+      );
+
       const permissions = await useCase.execute(roleId);
-      
-      return (res as any).json(permissions);
+      return res.json(permissions);
     } catch (error) {
-      (next as any)(error);
+      next(error);
     }
   }
 
-  static async getRolesByPermission(req: Request, res: Response, next: NextFunction) {
+  /**
+   * PUT /api/v1/roles/:id/permissions
+   * Body: { permissionIds: number[] }
+   */
+  static async updatePermissions(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const permissionId = (req as any).params.permissionId;
-      
-      const rolePermRepo = new PrismaRolePermissionRepository();
-      const permRepo = new PrismaPermissionRepository();
-      
-      const useCase = new GetRolesByPermissionUseCase(rolePermRepo, permRepo);
-      const roles = await useCase.execute(permissionId);
-      
-      return (res as any).json(roles);
+      const roleId = Number(req.params.id);
+      const { permissionIds } = req.body;
+
+      if (
+        Number.isNaN(roleId) ||
+        !Array.isArray(permissionIds) ||
+        !permissionIds.every(id => Number.isInteger(id))
+      ) {
+        return res.status(400).json({ message: 'Invalid payload' });
+      }
+
+      const useCase = new UpdateRolePermissionsUseCase(
+        new PrismaRolePermissionRepository(),
+        new PrismaRoleRepository(),
+        new PrismaPermissionRepository()
+      );
+
+      await useCase.execute(roleId, permissionIds);
+
+      return res.status(204).send();
     } catch (error) {
-      (next as any)(error);
+      next(error);
     }
   }
 }

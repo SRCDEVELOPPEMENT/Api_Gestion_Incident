@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { SiteController } from '../controllers/SiteController';
-import { authenticate, requirePermission } from '../middlewares/authMiddleware';
+import { authenticate, requireRole } from '../middlewares/authMiddleware';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.post('/', requirePermission('SITE_CREATE'), SiteController.create);
-router.get('/', requirePermission('SITE_READ'), SiteController.getAll);
-router.get('/:id', requirePermission('SITE_READ'), SiteController.getById);
-router.patch('/:id', requirePermission('SITE_UPDATE'), SiteController.update);
-router.delete('/:id', requirePermission('SITE_DELETE'), SiteController.delete);
+router.post('/', requireRole("ADMIN"), SiteController.create);
+router.get('/', requireRole("ADMIN", "EMPLOYE"), SiteController.getAll);
+router.get('/:id', requireRole("ADMIN", "EMPLOYE"), SiteController.getById);
+router.patch('/:id', requireRole("ADMIN"), SiteController.update);
+router.delete('/:id', requireRole("ADMIN"), SiteController.delete);
 
 export default router;

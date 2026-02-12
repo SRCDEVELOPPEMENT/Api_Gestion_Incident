@@ -35,30 +35,39 @@ export class AuthController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = authSchema.parse((req as any).body);
+      const data = authSchema.parse(req.body);
+
       const userRepo = new PrismaUserRepository();
       const tokenRepo = new PrismaRefreshTokenRepository();
-      
       const useCase = new LoginUserUseCase(userRepo, tokenRepo);
-      const tokens = await useCase.execute(data);
-      
-      // Return tokens in body for localStorage usage
-      return (res as any).status(200).json({ 
-          message: 'Login successful',
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken
+
+      const result = await useCase.execute(data);
+
+      /**
+       * Nouveau contrat :
+       * - accessToken
+       * - refreshToken
+       * - roles[]
+       */
+
+      return res.status(200).json({
+        message: 'Login successful',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        roles: result.roles // ← uniquement les rôles
       });
+
     } catch (error: any) {
       if (error.message === 'Invalid credentials') {
-        return (next as any)(new UnauthorizedError('Invalid credentials'));
+        return next(new UnauthorizedError('Invalid credentials'));
       }
-      (next as any)(error);
+      return next(error);
     }
   }
 
-  static async me(req: Request, res: Response, next: NextFunction) {
-    // User is attached by the authenticate middleware
-    return (res as any).status(200).json((req as any).user);
+
+  static async me(req: Request, res: Response) {
+    return res.status(200).json((req as any).user);
   }
 
   static async refresh(req: Request, res: Response, next: NextFunction) {

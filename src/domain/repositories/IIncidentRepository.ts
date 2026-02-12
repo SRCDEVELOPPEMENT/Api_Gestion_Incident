@@ -7,7 +7,12 @@ export interface IIncidentRepository {
     files?: Express.Multer.File[]
   ): Promise<Incident>;
 
-  findById(id: string): Promise<Incident | null>;
+  //findById(id: string, userId: number, isAdmin: boolean): Promise<Incident | null>;
+  findById(
+    id: string,
+    userId: number,
+    isAdmin: boolean
+  ): Promise<Incident | null>;
 
   findAll(
     skip?: number,
@@ -23,4 +28,20 @@ export interface IIncidentRepository {
   ): Promise<Incident>;
 
   delete(id: string): Promise<void>;
+
+  findAllByUser(
+    userId: number,
+    skip: number,
+    take: number,
+    filters?: any,
+    orderBy?: any
+  ): Promise<Incident[]>;
+
+  getStatusStats(): Promise<{
+    open: number;
+    inProgress: number;
+    closed: number;
+    cancelled: number;
+  }>;
+
 }

@@ -4,101 +4,84 @@ import prisma from '../../../infrastructure/database/prisma';
 
 export interface AuthRequest extends Request {
   user?: {
-    id: string;
+    id: number;
     username: string;
     roles: string[];
-    permissions: string[];
   };
 }
 
-// Authenticate Token
-export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  // Read secret at runtime to ensure dotenv is loaded
+export const authenticate = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   const SECRET_KEY = process.env.JWT_SECRET || 'access_secret';
 
-  // Extract token from Authorization header (Bearer scheme)
-  const authHeader = (req as any).headers.authorization;
-  let token = null;
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  if (!token) return (res as any).status(401).json({ message: 'Unauthorized' });
+  const token = authHeader.split(' ')[1];
 
   try {
-    const decoded: any = jwt.verify(token, SECRET_KEY);
-    
-    // Fetch user with Roles and Permissions (Deep nested include for Many-to-Many explicit tables)
+    const decoded = jwt.verify(token, SECRET_KEY) as { id: number };
+
+    // ✅ Charger l'utilisateur depuis la DB
     const user = await prisma.user.findUnique({
-        where: { id: decoded.id },
-        include: {
-            roles: {
-                include: {
-                    role: {
-                        include: {
-                            permissions: {
-                                include: {
-                                    permission: true
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+      where: { id: Number(decoded.id) },
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
         }
+      }
     });
 
-    if (!user) return (res as any).status(401).json({ message: 'User not found' });
-    
-    // Security: Immediate Lockout if user is disabled even if token is valid
-    if (!user.isActive) {
-        return (res as any).status(403).json({ message: 'Account is locked or inactive' });
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
-    // Flattening the Prisma structure
-    const flatRoles = user.roles.map((ur: any) => ur.role);
-    // Extract permissions from all roles
-    const permissions = flatRoles.flatMap((r: any) => 
-        r.permissions.map((rp: any) => rp.permission.action)
-    );
-    const roleNames = flatRoles.map((r: any) => r.name);
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account is locked or inactive' });
+    }
 
-    (req as any).user = {
+    // ✅ Extraction simple des noms de rôles
+    const roleNames = user.roles.map(ur => ur.role.name);
+
+    req.user = {
       id: user.id,
       username: user.username,
-      roles: roleNames,
-      permissions: Array.from(new Set(permissions)) // Dedup
+      roles: roleNames
     };
 
-    // Return 401 (Unauthorized) instead of 403 (Forbidden) when token is invalid/expired
-    // This allows standard clients to detect the need for a refresh
-    // Fix: Type 'NextFunction' has no call signatures.
-    (next as any)();
+    return next();
+
   } catch (err) {
-    return (res as any).status(401).json({ message: 'Invalid or Expired Token' });
+    return res.status(401).json({ message: 'Invalid or Expired Token' });
   }
 };
 
-// RBAC Guard
-export const requirePermission = (permission: string) => {
+
+export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as any).user;
-    if (!user) return (res as any).status(401).json({ message: 'Unauthorized' });
 
-    // ✅ SUPER ADMIN via .env (temporaire)
-    if (
-      process.env.SUPER_ADMIN_USERNAME &&
-      user.username === process.env.SUPER_ADMIN_USERNAME
-    ) {
-      return next();
+    if (!user) {
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (!user.permissions.includes(permission)) {
-      return (res as any).status(403).json({ message: `Forbidden: Missing permission ${permission}` });
+    const userRoles: string[] = user.roles ?? [];
+
+    const hasAccess = userRoles.some(role =>
+      allowedRoles.includes(role)
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Forbidden' });
     }
 
-    // Fix: Type 'NextFunction' has no call signatures.
-    (next as any)();
+    next();
   };
 };

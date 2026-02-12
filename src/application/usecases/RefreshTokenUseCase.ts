@@ -43,9 +43,13 @@ export class RefreshTokenUseCase {
       throw new Error('User no longer exists');
     }
 
+    if (!user.isActive) {
+      throw new Error('Account is inactive');
+    }
+    
     // 5. ROTATION LOGIC
      // Generate new tokens with consistent duration (8h / 30d)
-    const payload = { id: user.id, username: user.username };
+    const payload = { id: user.id };
     const newAccessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: '8h' });
     const newRefreshToken = jwt.sign(payload, REFRESH_SECRET, { expiresIn: '30d' });
     // const newAccessToken = jwt.sign(payload, ACCESS_SECRET, { expiresIn: '15m' });

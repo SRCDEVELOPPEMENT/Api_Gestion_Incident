@@ -16,6 +16,7 @@ import { pathToFileURL } from 'url';
 import fs from 'fs/promises';
 import path from 'path';
 import { IncidentPdfService } from '../../../domain/services/IncidentPdfService';
+import { AuthUser } from '../../../domain/entities/AuthUser';
 
 const incidentSchema = z.object({
   description: z.string().min(5),
@@ -110,31 +111,74 @@ export class IncidentController {
       const size = Number((req as any).query.size) || 10;
       const sortBy = (req as any).query.sortBy as string;
       const sortOrder = (req as any).query.sortOrder as 'asc' | 'desc';
-      // Basic filtering
-      const filters: any = {};
-      if ((req as any).query.status) filters.status = (req as any).query.status;
-      if ((req as any).query.userId) filters.userId = (req as any).query.userId;
 
-      const incidents = await useCase.execute({ page, size, filters, sortBy, sortOrder });
+      // 🔐 utilisateur authentifié (source unique de vérité)
+      const user = (req as any).user;
+      if (!user) {
+        return (res as any).status(401).json({ message: 'Unauthorized' });
+      }
+
+      // 🔎 filtres AUTORISÉS (sans userId venant du front)
+      const filters: any = {};
+      if ((req as any).query.status) {
+        filters.status = (req as any).query.status;
+      }
+
+      const incidents = await useCase.execute({
+        page,
+        size,
+        userId: Number(user.id),
+        role: user.roles?.[0] ?? 'USER',
+        filters,
+        sortBy,
+        sortOrder
+      });
+
       return (res as any).json(incidents);
     } catch (error) {
-      // Fix: Type 'NextFunction' has no call signatures.
       (next as any)(error);
     }
   }
+
 
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
+
+      if (!(req as any).user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+
       const repo = new PrismaIncidentRepository();
       const useCase = new GetIncidentByIdUseCase(repo);
-      const incident = await useCase.execute((req as any).params.id);
-      if (!incident) throw new NotFoundError('Incident not found');
-      return (res as any).json(incident);
+
+      const user = (req as any).user as AuthUser;
+      // const isAdmin =
+      //   user.roles?.some(r => r.role.name === 'ADMIN') ?? false;
+
+      const isAdmin =
+        user.roles?.some((r: any) =>
+          typeof r === 'string'
+            ? r === 'ADMIN'
+            : r?.name === 'ADMIN' || r?.role?.name === 'ADMIN'
+      ) ?? false;
+
+      const incident = await useCase.execute(
+        req.params.id,
+        user.id,
+        isAdmin
+      );
+
+      if (!incident) {
+        return res.status(404).json({ message: 'Incident not found' });
+      }
+
+      return res.json(incident);
+
     } catch (error) {
-      // Fix: Type 'NextFunction' has no call signatures.
-      (next as any)(error);
+      next(error);
     }
   }
+
 
   static async update(req: Request, res: Response, next: NextFunction) {
     try {
@@ -189,37 +233,6 @@ export class IncidentController {
       return res.json(attachments);
   }
 
-  // static async deleteAttachment(req: Request, res: Response, next: NextFunction) {
-  //   try {
-  //     const incidentId = Number(req.params.incidentId);
-  //     const attachmentId = Number(req.params.attachmentId);
-
-  //     // Vérifier que la PJ existe et appartient bien à l’incident
-  //     const attachment = await prisma.attachment.findFirst({
-  //       where: {
-  //         id: attachmentId,
-  //         incidentId,
-  //       },
-  //     });
-
-  //     if (!attachment) {
-  //       return res.status(404).json({
-  //         status: 'error',
-  //         code: 'NOT_FOUND',
-  //         message: 'Attachment not found for this incident',
-  //       });
-  //     }
-
-  //     await prisma.attachment.delete({
-  //       where: { id: attachmentId },
-  //     });
-
-  //     return res.status(204).send();
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // }
-
   static async deleteAttachment(req: Request, res: Response, next: NextFunction) {
     try {
       const incidentId = Number(req.params.incidentId);
@@ -252,209 +265,132 @@ export class IncidentController {
     }
   }
 
+  static async generatePdf(req: Request, res: Response, next: NextFunction) {
+    try {
 
-// static async generatePdf(req: Request, res: Response, next: NextFunction) {
-//   try {
-//     const incidentId = Number(req.params.id);
+      if (!(req as any).user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
 
-//     const incident = await prisma.incident.findUnique({
-//       where: { id: incidentId },
-//     });
+      const incidentId = req.params.id;
 
-//     if (!incident) {
-//       return res.status(404).json({ message: 'Incident introuvable' });
-//     }
+      const user = (req as any).user as AuthUser;
 
-//     const templatePath = path.join(
-//       process.cwd(),
-//       'templates/incident-report.html'
-//     );
+      const isAdmin =
+        user.roles?.some((r: any) =>
+          typeof r === 'string'
+            ? r === 'ADMIN'
+            : r?.name === 'ADMIN' || r?.role?.name === 'ADMIN'
+        ) ?? false;
 
-//     const template = await fs.readFile(templatePath, 'utf8');
+      const repo = new PrismaIncidentRepository();
 
-//     const html = template
-//       // 🔹 En-tête / Références
-//       .replace('{{reference}}', `INC${incident.id}`)
-//       .replace('{{createdAt}}', incident.createdAt.toISOString().slice(0, 10))
-//       .replace('{{dueDate}}', incident.dueDate.toISOString().slice(0, 10))
+      const incident = await repo.findById(
+        incidentId,
+        user.id,
+        isAdmin
+      );
 
-//       // 🔹 Acteurs / Services
-//       .replace(
-//         '{{creator}}',
-//         incident.reporterId ? String(incident.reporterId) : '—'
-//       )
-//       .replace('{{emitterService}}', incident.scope ?? '—')
-//       .replace(
-//         '{{receiverService}}',
-//         incident.processDomainId ? String(incident.processDomainId) : '—'
-//       )
+      if (!incident) {
+        return res.status(404).json({ message: 'Incident introuvable ou accès refusé' });
+      }
 
-//       // 🔹 Sites / Numéros
-//       .replace('{{incidentSite}}', '—')
-//       .replace('{{dsNumber}}', String(incident.id))
+      const templatePath = path.join(
+        process.cwd(),
+        'templates/incident-report.html'
+      );
 
-//       // 🔹 Statut / Priorité
-//       .replace('{{status}}', incident.status)
-//       .replace('{{priority}}', incident.urgency)
+      const template = await fs.readFile(templatePath, 'utf8');
 
-//       // 🔹 Classification
-//       .replace(
-//         '{{category}}',
-//         incident.categoryId ? String(incident.categoryId) : '—'
-//       )
-//       .replace(
-//         '{{process}}',
-//         incident.processDomainId ? String(incident.processDomainId) : '—'
-//       )
+      const receiverSites =
+        incident.sites?.length
+          ? incident.sites.map(site => site.name).join(', ')
+          : '—';
 
-//       // 🔹 Contenu métier
-//       .replace('{{description}}', incident.description)
-//       .replace('{{scope}}', incident.scope ?? '—')
-//       .replace(
-//         '{{cause}}',
-//         incident.subCategoryId ? String(incident.subCategoryId) : '—'
-//       )
+      const ImpactedSites =
+        incident.impactedSites?.length
+          ? incident.impactedSites.map(site => site.name).join(', ')
+          : '—';
 
-//       // 🔹 Sections libres
-//       .replace('{{actions}}', '—')
-//       .replace('{{proposal}}', '—')
-//       .replace('{{observation}}', '—')
+      const emitterService =
+        incident.serviceEmitter;
 
-//       // 🔹 Logo
-//       .replace(
-//         '{{LOGO_URL}}',
-//         'file://' + path.join(process.cwd(), 'assets/logo.png')
-//       );
+      const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
+      const logoBuffer = await fs.readFile(logoPath);
+      const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
 
-//     const outputPath = path.join(
-//       process.cwd(),
-//       'uploads',
-//       'incidents',
-//       `incident_${incident.id}.pdf`
-//     );
+      const html = template
+        .replace('{{reference}}', incident.reference)
+        .replace(
+          '{{createdAt}}',
+          incident.createdAt
+            ? new Date(incident.createdAt).toISOString().slice(0, 10)
+            : '—'
+        )
+        .replace(
+          '{{dueDate}}',
+          incident.dueDate
+            ? new Date(incident.dueDate).toISOString().slice(0, 10)
+            : '—'
+        )        
+        .replace('{{creator}}', '—')
+        .replace('{{emitterService}}', emitterService ?? '—')
+        .replace('{{receiverService}}', receiverSites)
+        .replace('{{incidentSite}}', ImpactedSites)
+        .replace('{{status}}', incident.status)
+        .replace('{{criticality}}', incident.criticality ?? '—')
+        .replace('{{priority}}', incident.urgency ?? '—')
+        .replace('{{category}}', incident.category ?? '—')
+        .replace('{{process}}', incident.processDomain ?? '—')
+        .replace('{{cause}}', incident.subCategory ?? '—')
+        .replace('{{description}}', incident.description ?? '—')
+        .replace('{{scope}}', incident.scope ?? '—')
+        .replace('{{actions}}', '—')
+        .replace('{{proposal}}', '—')
+        .replace('{{observation}}', '—')
+        .replace('{{LOGO_URL}}', logoBase64);
 
-//     await IncidentPdfService.generate(html, outputPath);
+      const outputPath = path.join(
+        process.cwd(),
+        'uploads',
+        'incidents',
+        `incident_${incident.id}.pdf`
+      );
 
-//     return res.sendFile(outputPath);
-//   } catch (error) {
-//     next(error);
-//   }
-// }
+      await IncidentPdfService.generate(html, outputPath);
 
+      return res.sendFile(outputPath);
 
-static async generatePdf(req: Request, res: Response, next: NextFunction) {
-  try {
-    const incidentId = req.params.id;
+    } catch (error) {
+      next(error);
+    }
+  }
 
-    // ✅ UTILISER LE REPOSITORY (PAS PRISMA DIRECT)
-    const repo = new PrismaIncidentRepository();
-    const incident = await repo.findById(incidentId);
+  static async downloadAttachment(req: Request, res: Response) {
+    const { attachmentId } = req.params;
 
-    if (!incident) {
-      return res.status(404).json({ message: 'Incident introuvable' });
+    const attachment = await prisma.attachment.findUnique({
+      where: { id: Number(attachmentId) }
+    });
+
+    if (!attachment) {
+      return res.status(404).json({ message: 'Fichier introuvable' });
     }
 
-    const templatePath = path.join(
-      process.cwd(),
-      'templates/incident-report.html'
-    );
+    const filePath = path.join(process.cwd(), attachment.url);
 
-    const template = await fs.readFile(templatePath, 'utf8');
-
-    // 🔹 Nom & Prénom = IncidentUser(s)
-    const incidentUsers =
-      incident.assignedUsers && incident.assignedUsers.length > 0
-        ? incident.assignedUsers
-            .map(user => `${user.username ?? ''}`.trim())
-            .join(', ')
-        : '—';
-
-    // 🔹 Récepteur Incident = IncidentSite(s)
-    const receiverIncident =
-      incident.impactedSites && incident.impactedSites.length > 0
-        ? incident.impactedSites.map(site => site.name).join(', ')
-        : '—';
-        
-    // ======================================================
-    // 🔥 ICI : CONSTRUCTION DE L’URL DU LOGO (OBLIGATOIRE)
-    // ======================================================
-    const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
-    //const logoUrl = pathToFileURL(logoPath).href;
-    const logoBuffer = await fs.readFile(logoPath);
-    const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
-    // ======================================================
-
-    const html = template
-      // ======================
-      // EN-TÊTE
-      // ======================
-      .replace('{{reference}}', incident.reference)
-      .replace('{{createdAt}}', incident.createdAt.toISOString().slice(0, 10))
-      .replace('{{dueDate}}', incident.dueDate.toISOString().slice(0, 10))
-
-      // ======================
-      // ACTEURS / SERVICES
-      // ======================
-      .replace('{{creator}}', incidentUsers)
-      .replace('{{emitterService}}', '—')
-      .replace('{{receiverService}}', receiverIncident) // ✅ ICI
-
-      // ======================
-      // SITES / NUMÉROS
-      // ======================
-      .replace(
-        '{{incidentSite}}',
-        incident.impactedSites.length > 0
-          ? incident.impactedSites.map(s => s.name).join(', ')
-          : '—'
-      )
-      //.replace('{{dsNumber}}', incident.reference)
-
-      // ======================
-      // STATUT / PRIORITÉ
-      // ======================
-      .replace('{{status}}', incident.status)
-      .replace('{{priority}}', incident.urgency)
-
-      // ======================
-      // CLASSIFICATION MÉTIER
-      // ======================
-      .replace('{{category}}', incident.category ?? '—')
-      .replace('{{process}}', incident.processDomain ?? '—')
-      .replace('{{cause}}', incident.subCategory ?? '—')
-
-      // ======================
-      // CONTENU
-      // ======================
-      .replace('{{description}}', incident.description)
-      .replace('{{scope}}', incident.scope ?? '—')
-
-      // ======================
-      // SECTIONS LIBRES
-      // ======================
-      .replace('{{actions}}', '—')
-      .replace('{{proposal}}', '—')
-      .replace('{{observation}}', '—')
-
-      // ======================
-      // LOGO
-      // ======================
-      // 🔥 UTILISATION DE logoUrl ICI
-      .replace('{{LOGO_URL}}', logoBase64);
-
-    const outputPath = path.join(
-      process.cwd(),
-      'uploads',
-      'incidents',
-      `incident_${incident.id}.pdf`
-    );
-
-    await IncidentPdfService.generate(html, outputPath);
-
-    return res.sendFile(outputPath);
-  } catch (error) {
-    next(error);
+    return res.download(filePath, attachment.fileName);
   }
-}
+
+  static async getStatusStats(req: Request, res: Response) {
+    try {
+      const repo = new PrismaIncidentRepository();
+      const stats = await repo.getStatusStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Erreur récupération stats:', error);
+      res.status(500).json({ message: 'Erreur récupération statistiques' });
+    }
+  }
 
 }

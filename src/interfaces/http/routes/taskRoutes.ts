@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TaskController } from '../controllers/TaskController';
 import { upload } from '../middlewares/multer';
-import { authenticate, requirePermission } from '../middlewares/authMiddleware';
+import { authenticate, requireRole } from '../middlewares/authMiddleware';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ router.use(authenticate);
 // Créer une tâche pour un incident
 router.post(
   '/',
-  requirePermission('TASK_CREATE'),
+  requireRole("ADMIN", "EMPLOYE"),
   upload.array('attachments'),
   TaskController.create
 );
@@ -18,21 +18,21 @@ router.post(
 // Toutes les tâches (admin / arbitre)
 router.get(
   '/',
-  requirePermission('TASK_READ'),
+  requireRole("ADMIN", "EMPLOYE"),
   TaskController.getAll
 );
 
 // Détails d’une tâche
 router.get(
   '/:id',
-  requirePermission('TASK_READ'),
+  requireRole("ADMIN", "EMPLOYE"),
   TaskController.getById
 );
 
 // Mise à jour
 router.patch(
   '/:id',
-  requirePermission('TASK_UPDATE'),
+  requireRole("ADMIN", "EMPLOYE"),
   upload.array('attachments'),
   TaskController.update
 );
@@ -40,8 +40,14 @@ router.patch(
 // Suppression
 router.delete(
   '/:id',
-  requirePermission('TASK_DELETE'),
+  requireRole("ADMIN", "EMPLOYE"),
   TaskController.delete
+);
+
+router.delete(
+  '/:taskId/attachments',
+  requireRole("ADMIN", "EMPLOYE"),
+  TaskController.deleteAllAttachments
 );
 
 export default router;

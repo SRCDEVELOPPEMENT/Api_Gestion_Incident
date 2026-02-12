@@ -1,52 +1,93 @@
 import { Router } from 'express';
 import { IncidentController } from '../controllers/IncidentController';
-import { authenticate, requirePermission } from '../middlewares/authMiddleware';
-import { uploadIncidentFiles } from '../middlewares/upload';
+import { authenticate, requireRole } from '../middlewares/authMiddleware';
+//import { uploadIncidentFiles } from '../middlewares/upload';
+import { upload } from '../middlewares/upload';
 import { TaskController } from '../controllers/TaskController';
+import prisma from '../../../infrastructure/database/prisma';
 
 const router = Router();
 
 router.use(authenticate);
 
-
 router.post(
   '/',
-  requirePermission('incident:create'),
-  uploadIncidentFiles,
+  requireRole("ADMIN", "EMPLOYE"),
+  upload.array('attachments'),
   IncidentController.create
 );
 
-router.get('/', requirePermission('INCIDENT_READ'), IncidentController.getAll);
-router.get('/:id', requirePermission('INCIDENT_READ'), IncidentController.getById);
-//router.put('/:id', requirePermission('INCIDENT_UPDATE'), IncidentController.update);
+router.get('/', 
+  requireRole("ADMIN", "EMPLOYE"), 
+  IncidentController.getAll
+);
+
+router.get('/:id', 
+  requireRole("ADMIN", "EMPLOYE"), 
+  IncidentController.getById
+);
+
 router.put(
   '/:id',
-  requirePermission('INCIDENT_UPDATE'),
-  uploadIncidentFiles,
+  requireRole("ADMIN", "EMPLOYE"),
+  upload.array('attachments'),
   IncidentController.update
 );
-router.delete('/:id', requirePermission('INCIDENT_DELETE'), IncidentController.delete);
+
+router.delete('/:id', requireRole("ADMIN", "EMPLOYE"), IncidentController.delete);
+
 router.get(
   '/:incidentId/attachments',
-  requirePermission('INCIDENT_READ'),
+  requireRole("ADMIN", "EMPLOYE"),
   IncidentController.getAttachments
 );
+
 router.get(
   '/:incidentId/tasks',
-  requirePermission('TASK_READ'),
+  requireRole("ADMIN", "EMPLOYE"),
   TaskController.getByIncident
 );
 
 router.delete(
   '/:incidentId/attachments/:attachmentId',
-  requirePermission('INCIDENT_UPDATE'),
+  requireRole("ADMIN", "EMPLOYE"),
   IncidentController.deleteAttachment
 );
 
 router.get(
   '/:id/report/pdf',
-  requirePermission('INCIDENT_READ'),
+  requireRole("ADMIN", "EMPLOYE"),
   IncidentController.generatePdf
 );
+
+router.get(
+  '/:incidentId/attachments/:attachmentId/download',
+  requireRole("ADMIN", "EMPLOYE"),
+  IncidentController.downloadAttachment
+);
+
+router.get(
+  '/stats/simple', 
+  requireRole("ADMIN", "EMPLOYE"),
+  async (req, res) => {
+  try {
+    const [open, inProgress, resolved, cancelled] = await Promise.all([
+      prisma.incident.count({ where: { status: 'OPEN' } }),
+      prisma.incident.count({ where: { status: 'IN_PROGRESS' } }),
+      prisma.incident.count({ where: { status: 'RESOLVED' } }),
+      prisma.incident.count({ where: { status: 'CANCELLED' } }),
+    ]);
+
+    res.json({
+      open,
+      inProgress,
+      closed: resolved,
+      cancelled,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur récupération stats' });
+  }
+});
 
 export default router;

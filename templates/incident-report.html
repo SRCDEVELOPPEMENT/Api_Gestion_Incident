@@ -134,8 +134,8 @@
 
   <table>
     <tr>
-      <td class="label">Émetteur Incident</td>
-      <td>{{emitterService}}</td>
+      <td class="label">Site Incident</td>
+      <td>{{incidentSite}}</td>
       <td class="label">Récepteur Incident</td>
       <td>{{receiverService}}</td>
     </tr>
@@ -146,16 +146,10 @@
       <td>{{dueDate}}</td>
     </tr>
     <tr>
-      <td class="label">Nom & Prénom</td>
-      <td>{{creator}}</td>
+      <td class="label">Urgence</td>
+      <td>{{criticality}}</td>
       <td class="label">Site / Service Émetteur</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td class="label">Site Incident</td>
-      <td>{{incidentSite}}</td>
-      <td class="label">Numéro de DS</td>
-      <td>-</td>
+      <td>{{emitterService}}</td>
     </tr>
     <tr>
       <td class="label">Statut</td>
@@ -175,23 +169,23 @@
     NB : Les incidents reliés au budget doivent être signés par le responsable du service contrôle de gestion.
   </p>
 
-  <p class="section-title">Déclaration de l’incident (Acteur et conditions)</p>
+  <p class="section-title">Déclaration de l’incident (Description)</p>
   <p>{{description}}</p>
 
-  <p class="section-title">Cause probable</p>
-  <p>{{cause}}</p>
+  <!-- <p class="section-title">Cause probable</p>
+  <p>{{cause}}</p> -->
 
   <p class="section-title">Périmètre</p>
   <p>{{scope}}</p>
 
-  <p class="section-title">Détail des travaux réalisés / Actions menées</p>
-  <p>{{actions}}</p>
+  <!-- <p class="section-title">Détail des travaux réalisés / Actions menées</p>
+  <p>{{actions}}</p> -->
 
-  <p class="section-title">Observation</p>
-  <p>{{observation}}</p>
+  <!-- <p class="section-title">Observation</p>
+  <p>{{observation}}</p> -->
 
-  <p class="section-title">Proposition de tâche</p>
-  <p>{{proposal}}</p>
+  <!-- <p class="section-title">Proposition de tâche</p>
+  <p>{{proposal}}</p> -->
 
   <table class="signature">
     <tr>
@@ -201,6 +195,14 @@
       <td>Visa<br/>REXA</td>
       <td>Visa<br/>Resp. RH</td>
       <td>Visa<br/>RACI</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
     </tr>
   </table>
 </body>

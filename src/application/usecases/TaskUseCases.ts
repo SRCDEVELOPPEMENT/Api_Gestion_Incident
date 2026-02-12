@@ -23,8 +23,23 @@ export class CreateTaskUseCase {
 
 export class GetAllTasksUseCase {
   constructor(private repo: ITaskRepository) {}
-  async execute(skip: number, take: number): Promise<Task[]> {
-    return this.repo.findAll(skip, take);
+
+  async execute(params: {
+    userId: number;
+    role: string;
+    page: number;
+    size: number;
+  }): Promise<Task[]> {
+
+    const skip = (params.page - 1) * params.size;
+
+    // 👑 ADMIN / MANAGER → toutes les tâches
+    if (params.role === 'ADMIN' || params.role === 'MANAGER') {
+      return this.repo.findAll(skip, params.size);
+    }
+
+    // 👤 USER → seulement ses incidents
+    return this.repo.findAllByUser(params.userId, skip, params.size);
   }
 }
 
@@ -55,5 +70,14 @@ export class GetTasksByIncidentUseCase {
 
   async execute(incidentId: number) {
     return this.taskRepository.findByIncident(incidentId);
+  }
+}
+
+
+export class DeleteTaskAttachmentsUseCase {
+  constructor(private repo: ITaskRepository) {}
+
+  async execute(taskId: number): Promise<void> {
+    await this.repo.deleteAllAttachments(taskId);
   }
 }

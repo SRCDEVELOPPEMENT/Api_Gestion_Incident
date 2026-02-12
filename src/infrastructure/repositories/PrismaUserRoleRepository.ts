@@ -4,7 +4,7 @@ import { User } from '../../domain/entities/User';
 import prisma from '../database/prisma';
 
 export class PrismaUserRoleRepository implements IUserRoleRepository {
-  async assign(userId: string, roleId: string): Promise<void> {
+  async assign(userId: number, roleId: number): Promise<void> {
     await prisma.userRole.create({
       data: {
         userId,
@@ -13,7 +13,7 @@ export class PrismaUserRoleRepository implements IUserRoleRepository {
     });
   }
 
-  async revoke(userId: string, roleId: string): Promise<void> {
+  async revoke(userId: number, roleId: number): Promise<void> {
     // Utilisation de deleteMany pour gérer la clé composite de manière sûre via Prisma
     await prisma.userRole.deleteMany({
       where: {
@@ -23,7 +23,7 @@ export class PrismaUserRoleRepository implements IUserRoleRepository {
     });
   }
 
-  async getUserRoles(userId: string): Promise<Role[]> {
+  async getUserRoles(userId: number): Promise<Role[]> {
     const userRoles = await prisma.userRole.findMany({
       where: { userId },
       include: { role: true } // Join avec la table Roles
@@ -31,7 +31,7 @@ export class PrismaUserRoleRepository implements IUserRoleRepository {
     return userRoles.map((ur: any) => ur.role) as unknown as Role[];
   }
 
-  async getRoleUsers(roleId: string): Promise<User[]> {
+  async getRoleUsers(roleId: number): Promise<User[]> {
     const roleUsers = await prisma.userRole.findMany({
       where: { roleId },
       include: { user: true } // Join avec la table Users
@@ -44,7 +44,7 @@ export class PrismaUserRoleRepository implements IUserRoleRepository {
     }) as unknown as User[];
   }
 
-  async exists(userId: string, roleId: string): Promise<boolean> {
+  async exists(userId: number, roleId: number): Promise<boolean> {
     const count = await prisma.userRole.count({
       where: {
         userId,

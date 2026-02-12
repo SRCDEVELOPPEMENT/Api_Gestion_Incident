@@ -5,6 +5,7 @@ import { Attachment } from './Attachment';
 
 export interface Incident {
   id: string;
+  userId: number;
   reference: string;
   description: string;
   status: 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
@@ -16,7 +17,7 @@ export interface Incident {
   scope?: string | null;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
-
+  serviceEmitter?: string | null;
   // Relations
   categoryId: string;
   tasks?: Task[];

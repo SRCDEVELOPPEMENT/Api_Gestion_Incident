@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { CategoryController } from '../controllers/CategoryController';
-import { authenticate, requirePermission } from '../middlewares/authMiddleware';
+import { authenticate, requireRole } from '../middlewares/authMiddleware';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.post('/', requirePermission('CATEGORY_CREATE'), CategoryController.create);
-router.get('/', requirePermission('CATEGORY_READ'), CategoryController.getAll);
-router.get('/:id', requirePermission('CATEGORY_READ'), CategoryController.getById);
-router.patch('/:id', requirePermission('CATEGORY_UPDATE'), CategoryController.update);
-router.delete('/:id', requirePermission('CATEGORY_DELETE'), CategoryController.delete);
+router.post('/', requireRole("ADMIN"), CategoryController.create);
+router.get('/', requireRole("ADMIN", "EMPLOYE"), CategoryController.getAll);
+router.get('/:id', requireRole("ADMIN", "EMPLOYE"), CategoryController.getById);
+router.patch('/:id', requireRole("ADMIN"), CategoryController.update);
+router.delete('/:id', requireRole("ADMIN"), CategoryController.delete);
 
 export default router;

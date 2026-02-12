@@ -2,9 +2,9 @@ import { Role } from '../entities/Role';
 import { User } from '../entities/User';
 
 export interface IUserRoleRepository {
-  assign(userId: string, roleId: string): Promise<void>;
-  revoke(userId: string, roleId: string): Promise<void>;
-  getUserRoles(userId: string): Promise<Role[]>;
-  getRoleUsers(roleId: string): Promise<User[]>;
-  exists(userId: string, roleId: string): Promise<boolean>;
+  assign(userId: number, roleId: number): Promise<void>;
+  revoke(userId: number, roleId: number): Promise<void>;
+  getUserRoles(userId: number): Promise<Role[]>;
+  getRoleUsers(roleId: number): Promise<User[]>;
+  exists(userId: number, roleId: number): Promise<boolean>;
 }

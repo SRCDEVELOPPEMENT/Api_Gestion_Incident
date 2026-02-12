@@ -18,10 +18,10 @@ export class SiteController {
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
       const data = createSiteSchema.parse((req as any).body);
-      const userId = (req as any).user.id;
       const repo = new PrismaSiteRepository();
       const useCase = new CreateSiteUseCase(repo);
-      const site = await useCase.execute({ ...data, userId });
+      const createdByUserId = (req as any).user.id;
+      const site = await useCase.execute({ ...data, createdByUserId });
       return (res as any).status(201).json(site);
     } catch (error) {
       // Fix: Type 'NextFunction' has no call signatures.
@@ -49,7 +49,7 @@ export class SiteController {
     try {
         const repo = new PrismaSiteRepository();
         const useCase = new GetSiteByIdUseCase(repo);
-        const site = await useCase.execute((req as any).params.id);
+        const site = await useCase.execute(Number(req.params.id));
         if (!site) throw new NotFoundError('Site not found');
         return (res as any).json(site);
     } catch (error) {
@@ -63,7 +63,7 @@ export class SiteController {
         const data = createSiteSchema.partial().parse((req as any).body);
         const repo = new PrismaSiteRepository();
         const useCase = new UpdateSiteUseCase(repo);
-        const site = await useCase.execute((req as any).params.id, data);
+        const site = await useCase.execute(Number(req.params.id), data);
         return (res as any).json(site);
       } catch (error) {
           // Fix: Type 'NextFunction' has no call signatures.
@@ -75,7 +75,7 @@ export class SiteController {
       try {
         const repo = new PrismaSiteRepository();
         const useCase = new DeleteSiteUseCase(repo);
-        await useCase.execute((req as any).params.id);
+        await useCase.execute(Number(req.params.id));
         return (res as any).status(204).send();
       } catch (error) {
         // Fix: Type 'NextFunction' has no call signatures.

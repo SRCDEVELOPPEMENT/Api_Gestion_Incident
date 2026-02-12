@@ -13,32 +13,6 @@ import prisma from '../database/prisma';
 export class PrismaTaskRepository implements ITaskRepository {
 
 
-  // async create(data: CreateTaskWithAttachments): Promise<Task> {
-  //   const { attachments, userId, incidentId, ...rest } = data;
-
-  //   const task = await prisma.task.create({
-  //     data: {
-  //       ...rest,
-  //       userId,
-  //       incidentId,
-
-  //       ...(attachments && attachments.length > 0 && {
-  //         attachments: {
-  //           create: attachments.map(att => ({
-  //             fileName: att.fileName,
-  //             url: att.url,
-  //             uploadedAt: new Date()
-  //           }))
-  //         }
-  //       })
-  //     },
-  //     include: {
-  //       attachments: true
-  //     }
-  //   });
-
-  //   return task as unknown as Task;
-  // }
   async create(
     data: CreateTaskDTO,
     files?: Express.Multer.File[]
@@ -91,6 +65,64 @@ export class PrismaTaskRepository implements ITaskRepository {
     return tasks as unknown as Task[];
   }
 
+  // async findAllByUser(
+  //   userId: number,
+  //   skip = 0,
+  //   take = 20
+  // ): Promise<Task[]> {
+  //   return prisma.task.findMany({
+  //     skip,
+  //     take,
+  //     where: {
+  //       deletedAt: null,
+  //       incident: {
+  //         OR: [
+  //           // 🔹 incident déclaré par l’utilisateur
+  //           { reporterId: userId },
+
+  //           // 🔹 utilisateur assigné à l’incident
+  //           {
+  //             incidentUsers: {
+  //               some: {
+  //                 userId: userId
+  //               }
+  //             }
+  //           }
+  //         ]
+  //       }
+  //     },
+  //     orderBy: {
+  //       createdAt: 'desc'
+  //     },
+  //     include: {
+  //       attachments: true,
+  //       incident: true
+  //     }
+  //   }) as unknown as Task[];
+  // }
+
+  async findAllByUser(
+    userId: number,
+    skip = 0,
+    take = 20
+  ): Promise<Task[]> {
+    return prisma.task.findMany({
+      skip,
+      take,
+      where: {
+        deletedAt: null,
+        userId: userId // ✅ filtre direct
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        attachments: true,
+        incident: true
+      }
+    }) as unknown as Task[];
+  }
+
   async update(id: string, data: Omit<Partial<Task>, 'attachments'> & { attachments?: CreateAttachmentDTO[] }): Promise<Task> {
     const { attachments, ...rest } = data;
 
@@ -119,26 +151,7 @@ export class PrismaTaskRepository implements ITaskRepository {
       where: { id }
     });
   }
-  // async delete(id: number): Promise<void> {
-  //   await prisma.task.update({ 
-  //       where: { id: Number(id) },
-  //       data: { deletedAt: new Date() }
-  //   });
-  // }
 
-  // async findByIncident(incidentId: number) {
-  //   return prisma.task.findMany({
-  //     where: {
-  //       incidentId: incidentId,
-  //     },
-  //     orderBy: {
-  //       createdAt: 'desc',
-  //     },
-  //     include: {
-  //       attachments: true,
-  //     },
-  //   });
-  // }
   async findByIncident(incidentId: number) {
     return prisma.task.findMany({
       where: {
@@ -153,5 +166,12 @@ export class PrismaTaskRepository implements ITaskRepository {
       },
     });
   }
+
+async deleteAllAttachments(taskId: number): Promise<void> {
+  await prisma.attachment.deleteMany({
+    where: { taskId }
+  });
+}
+
 
 }

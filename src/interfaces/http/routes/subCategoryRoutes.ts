@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { SubCategoryController } from '../controllers/SubCategoryController';
-import { authenticate, requirePermission } from '../middlewares/authMiddleware';
+import { authenticate, requireRole } from '../middlewares/authMiddleware';
 
 const router = Router();
 
 router.use(authenticate);
 
-router.post('/', requirePermission('SUBCATEGORY_CREATE'), SubCategoryController.create);
-router.get('/', requirePermission('SUBCATEGORY_READ'), SubCategoryController.getAll);
-router.get('/:id', requirePermission('SUBCATEGORY_READ'), SubCategoryController.getById);
-router.patch('/:id', requirePermission('SUBCATEGORY_UPDATE'), SubCategoryController.update);
-router.delete('/:id', requirePermission('SUBCATEGORY_DELETE'), SubCategoryController.delete);
+router.post('/', requireRole("ADMIN"), SubCategoryController.create);
+router.get('/', requireRole("ADMIN", "EMPLOYE"), SubCategoryController.getAll);
+router.get('/:id', requireRole("ADMIN", "EMPLOYE"), SubCategoryController.getById);
+router.patch('/:id', requireRole("ADMIN"), SubCategoryController.update);
+router.delete('/:id', requireRole("ADMIN"), SubCategoryController.delete);
 
 export default router;

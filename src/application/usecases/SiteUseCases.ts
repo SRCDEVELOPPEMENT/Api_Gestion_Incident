@@ -17,21 +17,21 @@ export class GetAllSitesUseCase {
 
 export class GetSiteByIdUseCase {
   constructor(private repo: ISiteRepository) {}
-  async execute(id: string): Promise<Site | null> {
+  async execute(id: number): Promise<Site | null> {
     return this.repo.findById(id);
   }
 }
 
 export class UpdateSiteUseCase {
   constructor(private repo: ISiteRepository) {}
-  async execute(id: string, data: Partial<Site>): Promise<Site> {
+  async execute(id: number, data: Partial<Site>): Promise<Site> {
     return this.repo.update(id, data);
   }
 }
 
 export class DeleteSiteUseCase {
   constructor(private repo: ISiteRepository) {}
-  async execute(id: string): Promise<void> {
+  async execute(id: number): Promise<void> {
     return this.repo.delete(id);
   }
 }

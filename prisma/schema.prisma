@@ -18,18 +18,27 @@ model User {
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   deletedAt      DateTime? // ✅ AJOUT ICI
+  updatedAt      DateTime @updatedAt
+
+// 🔐 APPARTENANCE MÉTIER
+  siteId         Int?
+  site           Site?     @relation("UserSite", fields: [siteId], references: [id])
+
   roles          UserRole[]
   refreshTokens  RefreshToken[]
 
-  sites          Site[]
   categories     Category[]
   processes      Process[]
   tasks          Task[]
   subCategory    SubCategory[]
   subProcess     SubProcess[]
+
   createdIncidents  Incident[] @relation("IncidentCreator")
   reportedIncidents Incident[] @relation("IncidentReporter")
   assignedIncidents IncidentUser[]
+
+  // 🔹 Sites créés (optionnel mais propre)
+  createdSites       Site[]         @relation("SiteCreator")
 }
 
 model Role {
@@ -88,8 +97,11 @@ model Site {
   id        Int   @id @default(autoincrement())
   name      String
 
-  userId    Int
-  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdByUserId    Int
+  createdBy       User @relation("SiteCreator", fields: [createdByUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // 🔹 Utilisateurs appartenant au site
+  users     User[] @relation("UserSite")
 
   incidentSites IncidentSite[]
   impactedIncidents IncidentImpactedSite[]
@@ -185,14 +197,14 @@ model Incident {
   reporterId    Int
   reporter      User @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  subProcessId  Int
-  subProcess    SubProcess @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subProcessId  Int?
+  subProcess    SubProcess? @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   categoryId      Int
   category        Category  @relation(fields: [categoryId], references: [id])
 
-  subCategoryId Int
-  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subCategoryId Int?
+  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   processDomainId Int?
   processDomain   Process?  @relation(fields: [processDomainId], references: [id])
@@ -244,7 +256,7 @@ model Attachment {
   url        String
 
   incidentId Int?
-  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   taskId     Int?
   task       Task? @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)

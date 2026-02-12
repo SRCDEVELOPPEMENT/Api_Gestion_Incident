@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { PrismaTaskRepository } from '../../../infrastructure/repositories/PrismaTaskRepository';
 import { 
     CreateTaskUseCase, 
@@ -6,7 +6,8 @@ import {
     GetTasksByIncidentUseCase, 
     UpdateTaskUseCase, 
     DeleteTaskUseCase, 
-    GetTaskByIdUseCase
+    GetTaskByIdUseCase,
+    DeleteTaskAttachmentsUseCase
 } from '../../../application/usecases/TaskUseCases';
 import { z } from 'zod';
 
@@ -51,11 +52,53 @@ export class TaskController {
     }
     }
 
-    static async getAll(req: Request, res: Response) {
+    // static async getAll(req: Request, res: Response, next: NextFunction) {
+    // try {
+    //     const user = (req as any).user;
+
+    //     const page = Number(req.query.page) || 1;
+    //     const size = Number(req.query.size) || 10;
+
+    //     const repo = new PrismaTaskRepository();
+    //     const useCase = new GetAllTasksUseCase(repo);
+
+    //     const tasks = await useCase.execute({
+    //     userId: user.id,
+    //     role: user.roles?.[0] ?? 'USER',
+    //     page,
+    //     size
+    //     });
+
+    //     return res.json(tasks);
+    // } catch (err) {
+    //     next(err);
+    // }
+    // }
+
+    static async getAll(req: Request, res: Response, next: NextFunction) {
+    try {
+        const user = (req as any).user;
+
+        const page = Number(req.query.page) || 1;
+        const size = Number(req.query.size) || 10;
+
+        const roleName =
+        user.roles?.[0]?.role?.name || 'USER'; // ✅ IMPORTANT
+
         const repo = new PrismaTaskRepository();
         const useCase = new GetAllTasksUseCase(repo);
-        const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
-        return (res as any).json(result);
+
+        const tasks = await useCase.execute({
+        userId: user.id,
+        role: roleName,
+        page,
+        size
+        });
+
+        return res.json(tasks);
+    } catch (err) {
+        next(err);
+    }
     }
 
     static async getById(req: Request, res: Response) {
@@ -102,6 +145,21 @@ export class TaskController {
         const tasks = await useCase.execute(incidentId);
 
         return res.json(tasks);
+    }
+
+    static async deleteAllAttachments(req: Request, res: Response) {
+    try {
+        const taskId = Number(req.params.taskId);
+
+        const repo = new PrismaTaskRepository();
+        const useCase = new DeleteTaskAttachmentsUseCase(repo);
+
+        await useCase.execute(taskId);
+
+        return res.status(204).send();
+    } catch (error: any) {
+        return res.status(400).json({ error: error.message });
+    }
     }
 
 }

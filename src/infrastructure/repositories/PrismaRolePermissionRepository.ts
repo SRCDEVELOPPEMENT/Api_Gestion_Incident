@@ -1,51 +1,44 @@
 import { IRolePermissionRepository } from '../../domain/repositories/IRolePermissionRepository';
-import { Role } from '../../domain/entities/Role';
-import { Permission } from '../../domain/entities/Permission';
 import prisma from '../database/prisma';
 
-export class PrismaRolePermissionRepository implements IRolePermissionRepository {
-  async assign(roleId: string, permissionId: string): Promise<void> {
-    await prisma.rolePermission.create({
-      data: {
-        roleId,
-        permissionId
+export class PrismaRolePermissionRepository
+  implements IRolePermissionRepository
+{
+  /**
+   * 🔹 Remplace complètement les permissions d’un rôle
+   * (stratégie de synchronisation complète)
+   */
+  async replacePermissions(
+    roleId: number,
+    permissionIds: number[]
+  ): Promise<void> {
+    await prisma.$transaction(async tx => {
+      // 1. Supprimer toutes les permissions existantes du rôle
+      await tx.rolePermission.deleteMany({
+        where: { roleId }
+      });
+
+      // 2. Réinsérer les permissions sélectionnées
+      if (permissionIds.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionIds.map(permissionId => ({
+            roleId,
+            permissionId
+          }))
+        });
       }
     });
   }
 
-  async revoke(roleId: string, permissionId: string): Promise<void> {
-    // Utilisation de deleteMany pour gérer la clé composite (roleId, permissionId) de manière robuste
-    await prisma.rolePermission.deleteMany({
-      where: {
-        roleId,
-        permissionId
-      }
-    });
-  }
-
-  async getPermissionsByRole(roleId: string): Promise<Permission[]> {
+  /**
+   * 🔹 Récupérer les IDs des permissions associées à un rôle
+   */
+  async getPermissionsByRole(roleId: number): Promise<number[]> {
     const results = await prisma.rolePermission.findMany({
       where: { roleId },
-      include: { permission: true }
+      select: { permissionId: true }
     });
-    return results.map((rp: any) => rp.permission) as unknown as Permission[];
-  }
 
-  async getRolesByPermission(permissionId: string): Promise<Role[]> {
-    const results = await prisma.rolePermission.findMany({
-      where: { permissionId },
-      include: { role: true }
-    });
-    return results.map((rp: any) => rp.role) as unknown as Role[];
-  }
-
-  async exists(roleId: string, permissionId: string): Promise<boolean> {
-    const count = await prisma.rolePermission.count({
-      where: {
-        roleId,
-        permissionId
-      }
-    });
-    return count > 0;
+    return results.map(r => r.permissionId);
   }
 }

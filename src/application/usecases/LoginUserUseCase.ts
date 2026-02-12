@@ -11,60 +11,48 @@ export class LoginUserUseCase {
   constructor(
     private userRepository: IUserRepository,
     private refreshTokenRepository: IRefreshTokenRepository
-  ) { }
+  ) {}
 
-  async execute(
-    data: LoginUserDTO
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+async execute(data: LoginUserDTO): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  roles: string[];
+}> {
+  const user = await this.userRepository.findAuthUserByUsername(data.username);
 
-    const user = await this.userRepository.findByUsername(data.username);
-
-    // 1. User existence
-    if (!user || !user.passwordHash) {
-      throw new Error('Invalid credentials');
-    }
-
-    // 2. User active check
-    if (!user.isActive) {
-      throw new Error('Account is inactive or locked');
-    }
-
-    // 3. Password check (FIX ICI)
-    const valid = await bcrypt.compare(
-      data.password,
-      user.passwordHash
-    );
-
-    if (!valid) {
-      throw new Error('Invalid credentials');
-    }
-
-    // 4. JWT payload
-    const payload = {
-      id: user.id,
-      username: user.username,
-      roles: user.roles || [],
-    };
-
-    // 5. Tokens
-    const accessToken = jwt.sign(payload, ACCESS_SECRET, {
-      expiresIn: '2h',
-    });
-
-    const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
-      expiresIn: '7d',
-    });
-
-    // 6. Persist refresh token
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await this.refreshTokenRepository.create({
-      token: refreshToken,
-      userId: user.id,
-      expiresAt,
-    });
-
-    return { accessToken, refreshToken };
+  if (!user || !user.passwordHash) {
+    throw new Error('Invalid credentials');
   }
+
+  if (!user.isActive) {
+    throw new Error('Account is inactive');
+  }
+
+  const valid = await bcrypt.compare(data.password, user.passwordHash);
+  if (!valid) {
+    throw new Error('Invalid credentials');
+  }
+
+  // ✅ Extraction des rôles
+  const roles =
+    user.roles?.map(ur => ur.role.name) ?? [];
+
+  // ✅ JWT minimal (id seulement)
+  const payload = { id: user.id };
+
+  const accessToken = jwt.sign(payload, ACCESS_SECRET, {
+    expiresIn: '2h'
+  });
+
+  const refreshToken = jwt.sign(payload, REFRESH_SECRET, {
+    expiresIn: '7d'
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    roles
+  };
+}
+
 }

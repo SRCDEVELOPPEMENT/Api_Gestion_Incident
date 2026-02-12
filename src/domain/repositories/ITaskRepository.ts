@@ -11,4 +11,12 @@ export interface ITaskRepository {
   findAll(skip?: number, take?: number): Promise<Task[]>;
   update(id: string, data: Omit<Partial<Task>, 'attachments'> & { attachments?: CreateAttachmentDTO[] }): Promise<Task>;
   delete(id: number): Promise<void>;
+  findAllByUser(
+    userId: number,
+    skip?: number,
+    take?: number
+  ): Promise<Task[]>;
+
+deleteAllAttachments(taskId: number): Promise<void>;
+
 }
