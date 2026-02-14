@@ -37,11 +37,4 @@ export interface IIncidentRepository {
     orderBy?: any
   ): Promise<Incident[]>;
 
-  getStatusStats(): Promise<{
-    open: number;
-    inProgress: number;
-    closed: number;
-    cancelled: number;
-  }>;
-
 }

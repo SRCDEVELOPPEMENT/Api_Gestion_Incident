@@ -3,13 +3,6 @@ import { Category, CreateCategoryDTO } from '../../domain/entities/Category';
 import { PrismaCategoryRepository } from '../../infrastructure/repositories/PrismaCategoryRepository';
 import { Site } from '../../domain/entities/Site';
 
-// export class CreateCategoryUseCase {
-//   constructor(private repo: ICategoryRepository) {}
-//   async execute(data: Pick<Category, 'name'>): Promise<Category> {
-//     return this.repo.create(data);
-//   }
-// }
-
 export class CreateCategoryUseCase {
   constructor(private repo: PrismaCategoryRepository) {}
 

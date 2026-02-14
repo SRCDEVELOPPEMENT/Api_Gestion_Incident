@@ -59,6 +59,12 @@ export class CreateIncidentUseCase {
       throw new Error('La date d’échéance ne peut pas être dans le passé');
     }
 
+    const personneIds = Array.isArray(data.personneIds)
+      ? data.personneIds
+      : data.personneIds
+        ? [data.personneIds]
+        : [];
+
     const impactedSiteIds = Array.isArray(data.impactedSiteIds)
       ? data.impactedSiteIds
       : data.impactedSiteIds
@@ -70,6 +76,7 @@ export class CreateIncidentUseCase {
       {
         ...data,
         impactedSiteIds,
+        personneIds,
         reference,
       },
       reporterId,

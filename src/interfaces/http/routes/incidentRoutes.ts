@@ -66,28 +66,35 @@ router.get(
   IncidentController.downloadAttachment
 );
 
-router.get(
-  '/stats/simple', 
-  requireRole("ADMIN", "EMPLOYE"),
-  async (req, res) => {
-  try {
-    const [open, inProgress, resolved, cancelled] = await Promise.all([
-      prisma.incident.count({ where: { status: 'OPEN' } }),
-      prisma.incident.count({ where: { status: 'IN_PROGRESS' } }),
-      prisma.incident.count({ where: { status: 'RESOLVED' } }),
-      prisma.incident.count({ where: { status: 'CANCELLED' } }),
-    ]);
+// router.get(
+//   '/stats/simple', 
+//   requireRole("ADMIN", "EMPLOYE"),
+//   async (req, res) => {
+//   try {
+//     const [open, inProgress, resolved, cancelled] = await Promise.all([
+//       prisma.incident.count({ where: { status: 'OPEN' } }),
+//       prisma.incident.count({ where: { status: 'IN_PROGRESS' } }),
+//       prisma.incident.count({ where: { status: 'RESOLVED' } }),
+//       prisma.incident.count({ where: { status: 'CANCELLED' } }),
+//     ]);
 
-    res.json({
-      open,
-      inProgress,
-      closed: resolved,
-      cancelled,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Erreur récupération stats' });
-  }
-});
+//     res.json({
+//       open,
+//       inProgress,
+//       closed: resolved,
+//       cancelled,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: 'Erreur récupération stats' });
+//   }
+// });
+
+
+router.get(
+  '/stats/simple',
+  requireRole("ADMIN", "EMPLOYE"),
+  IncidentController.getStatusStats
+);
 
 export default router;

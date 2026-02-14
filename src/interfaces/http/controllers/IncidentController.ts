@@ -17,6 +17,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { IncidentPdfService } from '../../../domain/services/IncidentPdfService';
 import { AuthUser } from '../../../domain/entities/AuthUser';
+import { IncidentService } from '../../../services/IncidentService';
 
 const incidentSchema = z.object({
   description: z.string().min(5),
@@ -38,12 +39,19 @@ const incidentSchema = z.object({
   otherSubCategory: z.string().optional(),
   processDomainId: z.string().optional(),
   subProcessId: z.string().optional(),
-  assignedUserIds: z.preprocess(
+  // assignedUserIds: z.preprocess(
+  //   (val) => {
+  //     if (!val) return [];
+  //     return Array.isArray(val) ? val : [val];
+  //   },
+  //   z.array(z.string()).optional()
+  // ),
+  personneIds: z.preprocess(
     (val) => {
       if (!val) return [];
       return Array.isArray(val) ? val : [val];
     },
-    z.array(z.string()).optional()
+    z.array(z.coerce.number()).optional()
   ),
   dueDate: z.string(),
   urgency: z.enum(['Faible', 'Moyenne', 'Haute', 'Immédiate']),
@@ -315,6 +323,13 @@ export class IncidentController {
       const emitterService =
         incident.serviceEmitter;
 
+      const personnesList =
+        incident.personnes?.length
+          ? `<ul>${incident.personnes
+              .map(p => `<li>${p.fullname}</li>`)
+              .join('')}</ul>`
+          : '—';
+
       const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
       const logoBuffer = await fs.readFile(logoPath);
       const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
@@ -344,6 +359,7 @@ export class IncidentController {
         .replace('{{process}}', incident.processDomain ?? '—')
         .replace('{{cause}}', incident.subCategory ?? '—')
         .replace('{{description}}', incident.description ?? '—')
+        .replace('{{personnes}}', personnesList)
         .replace('{{scope}}', incident.scope ?? '—')
         .replace('{{actions}}', '—')
         .replace('{{proposal}}', '—')
@@ -382,14 +398,63 @@ export class IncidentController {
     return res.download(filePath, attachment.fileName);
   }
 
-  static async getStatusStats(req: Request, res: Response) {
+  // static async getStatusStats(req: any, res: any) {
+  //   try {
+
+  //     const user = req.user;
+  //     console.log("USER BACKEND 👉", user);
+  //     const incidentService = new IncidentService();
+
+  //     const stats = await incidentService.getStatusStats({
+  //       id: user.id,
+  //       roles: user.roles,
+  //       siteId: user.siteId
+  //     });
+
+  //     console.log("STATS BACKEND 👉", stats);
+  //     res.json(stats);
+
+  //   } catch (error) {
+  //     console.error(error);
+  //     res.status(500).json({ message: 'Erreur récupération stats' });
+  //   }
+  // }
+
+  static async getStatusStats(req: any, res: any) {
     try {
-      const repo = new PrismaIncidentRepository();
-      const stats = await repo.getStatusStats();
+
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles.map(r => r.role.name);
+
+      const incidentService = new IncidentService();
+
+      const stats = await incidentService.getStatusStats({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined
+      });
+
       res.json(stats);
+
     } catch (error) {
-      console.error('Erreur récupération stats:', error);
-      res.status(500).json({ message: 'Erreur récupération statistiques' });
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération stats' });
     }
   }
 

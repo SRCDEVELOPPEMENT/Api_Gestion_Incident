@@ -35,7 +35,6 @@ model User {
 
   createdIncidents  Incident[] @relation("IncidentCreator")
   reportedIncidents Incident[] @relation("IncidentReporter")
-  assignedIncidents IncidentUser[]
 
   // 🔹 Sites créés (optionnel mais propre)
   createdSites       Site[]         @relation("SiteCreator")
@@ -212,7 +211,7 @@ model Incident {
   tasks         Task[]
   incidentSites   IncidentSite[]
   incidentImpactedSites IncidentImpactedSite[]  // ✅ OBLIGATOIRE
-  incidentUsers   IncidentUser[]
+  incidentPersonnes IncidentPersonne[]
   attachments   Attachment[]
 
   createdAt     DateTime @default(now())
@@ -227,11 +226,26 @@ model Incident {
   @@index([processDomainId])
 }
 
+
+model Personne {
+  id         Int      @id @default(autoincrement())
+  fullname   String   @unique
+
+  incidents  IncidentPersonne[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  @@index([fullname])
+}
+
+
 model Task {
   id          Int   @id @default(autoincrement())
   name        String
   description String?
-  status      String?   @default("OPEN")
+  status      String   @default("OPEN")
   dueDate     DateTime?
   userId      Int
   user        User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -259,7 +273,7 @@ model Attachment {
   incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   taskId     Int?
-  task       Task? @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  task       Task? @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   uploadedAt DateTime @default(now())
 
@@ -271,20 +285,10 @@ model IncidentSite {
   incidentId Int
   siteId     Int
 
-  incident   Incident @relation(fields: [incidentId], references: [id])
-  site       Site     @relation(fields: [siteId], references: [id])
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, siteId])
-}
-
-model IncidentUser {
-  incidentId Int
-  userId     Int
-
-  incident   Incident @relation(fields: [incidentId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
-
-  @@id([incidentId, userId])
 }
 
 model IncidentImpactedSite {
@@ -295,4 +299,17 @@ model IncidentImpactedSite {
   site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, siteId])
+}
+
+model IncidentPersonne {
+  incidentId  Int
+  personneId  Int
+
+  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  personne    Personne  @relation(fields: [personneId], references: [id], onDelete: Cascade)
+
+  assignedAt  DateTime @default(now()) // optionnel mais recommandé
+
+  @@id([incidentId, personneId]) // clé primaire composite
+  @@index([personneId])
 }

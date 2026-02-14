@@ -2,6 +2,7 @@ import { Task } from './Task';
 import { Site } from './Site';
 import { User } from './User';
 import { Attachment } from './Attachment';
+import { Personne } from './Personne';
 
 export interface Incident {
   id: string;
@@ -27,7 +28,8 @@ export interface Incident {
     id: number;
     name: string;
   }[];
-  assignedUsers?: User[]; // Users assigned to the incident
+  //assignedUsers?: User[]; // Users assigned to the incident
+  personnes?: Personne[];
   attachments?: Attachment[];
   createdAt: Date;
   updatedAt: Date;
@@ -41,7 +43,9 @@ export type CreateIncidentDTO = {
   subCategoryId?: string;
   siteIds: string[];
   impactedSiteIds: string[];
-  assignedUserIds?: string[];
+  //assignedUserIds?: string[];
+    // ✅ NOUVEAU
+  personneIds?: number[];
   categoryId: string;
   otherSubCategory?: string;
   processDomainId?: string;
@@ -65,7 +69,9 @@ export type UpdateIncidentDTO = Partial<{
   // ✅ relations modifiables
   siteIds: string[];
   impactedSiteIds: string[];       // ✅ NOUVEAU
-  assignedUserIds?: string[];
+  //assignedUserIds?: string[];
+   // ✅ NOUVEAU
+  personneIds?: number[];
   attachments?: {
     fileName: string;
     url: string;

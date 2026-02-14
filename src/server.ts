@@ -23,6 +23,7 @@ import { bootstrapAdmin } from './bootstrap/admin.bootstrap';
 import roleRoutes from './interfaces/http/routes/roleRoutes';
 import permissionRoutes from './interfaces/http/routes/permissionRoutes';
 import settingsRoutes from './interfaces/http/routes/settingsRoutes';
+import personneRoutes from './interfaces/http/routes/personneRoutes';
 
 dotenv.config();
 
@@ -101,6 +102,7 @@ app.use('/api/v1/sub-processes', subProcessRoutes);
 app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/permissions', permissionRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/api/v1/personnes', personneRoutes);
 
 /* -------------------------------------------------- */
 /* 5. 404 & erreurs                                   */

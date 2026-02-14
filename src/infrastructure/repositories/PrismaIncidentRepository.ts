@@ -11,7 +11,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     files?: Express.Multer.File[]
   ): Promise<Incident> {
 
-    const { siteIds, impactedSiteIds, assignedUserIds, ...rest } = data;
+    const { siteIds, impactedSiteIds, personneIds, ...rest } = data;
 
     const created = await prisma.$transaction(async (tx) => {
       return tx.incident.create({
@@ -50,13 +50,21 @@ export class PrismaIncidentRepository implements IIncidentRepository {
             }
           }),
           // ✅ relation Incident ↔ Users assignés (optionnel)
-          ...(assignedUserIds && assignedUserIds.length > 0 && {
-            incidentUsers: {
-              create: assignedUserIds.map(userId => ({
-                userId: Number(userId)
+          // ...(assignedUserIds && assignedUserIds.length > 0 && {
+          //   incidentUsers: {
+          //     create: assignedUserIds.map(userId => ({
+          //       userId: Number(userId)
+          //     }))
+          //   },
+          // }),
+          ...(personneIds && personneIds.length > 0 && {
+            incidentPersonnes: {
+              create: personneIds.map(personneId => ({
+                personneId: Number(personneId)
               }))
-            },
+            }
           }),
+
 
           ...(files && files.length > 0 && {
             attachments: {
@@ -77,7 +85,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           },
           incidentSites: { include: { site: true } },
           incidentImpactedSites: { include: { site: true } }, // ✅
-          incidentUsers: { include: { user: true } },
+          incidentPersonnes: { include: { personne: true } },
           attachments: true,
           tasks: true
         }
@@ -136,7 +144,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         subProcess: true,
         incidentSites: { include: { site: true } },
         incidentImpactedSites: { include: { site: true } },
-        incidentUsers: { include: { user: true } },
+        incidentPersonnes: { include: { personne: true } },
         attachments: true,
         tasks: true
       }
@@ -160,7 +168,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       where: { ...where, deletedAt: null },
       orderBy,
       include: {
-         reporter: {
+        reporter: {
           include: {
             site: true
           }
@@ -173,8 +181,8 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           include: { site: true }
         },
         incidentImpactedSites: { include: { site: true } }, // ✅ AJOUT
-        incidentUsers: {
-          include: { user: true }
+        incidentPersonnes: {
+          include: { personne: true }
         },
         attachments: true,
         tasks: true
@@ -182,15 +190,9 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     });
 
     return incidents.map(i => this.mapToDomain(i));
-    // return incidents.map(i =>
-    //   this.mapToDomain({
-    //     ...i,
-    //     sites: i.incidentSites.map(is => is.site) // ✅ LIGNE CLÉ
-    //   })
-    // );
   }
 
-  
+
   async findAllByUser(
     userId: number,
     skip = 0,
@@ -229,13 +231,13 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       take,
       orderBy: orderBy ?? { createdAt: 'desc' },
       include: {
-         reporter: {
+        reporter: {
           include: {
             site: true
           }
         },
         incidentSites: { include: { site: true } },
-        incidentUsers: { include: { user: true } },
+        incidentPersonnes: { include: { personne: true } },
         attachments: true,
         tasks: true
       }
@@ -246,13 +248,13 @@ export class PrismaIncidentRepository implements IIncidentRepository {
 
 
 
-    async update(
+  async update(
     id: string,
     data: UpdateIncidentDTO,
     files?: Express.Multer.File[]
   ): Promise<Incident> {
 
-    const { siteIds, impactedSiteIds, assignedUserIds, attachments, ...rest } = data;
+    const { siteIds, impactedSiteIds, personneIds, attachments, ...rest } = data;
 
     const updateData: Prisma.IncidentUncheckedUpdateInput = {
       ...(rest.status && { status: rest.status }), // ✅ CRITIQUE
@@ -265,6 +267,15 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
       ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
       ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
+
+      ...(personneIds && {
+        incidentPersonnes: {
+          deleteMany: {},
+          create: personneIds.map(id => ({
+            personne: { connect: { id: Number(id) } }
+          }))
+        }
+      })
     };
 
     if (siteIds) {
@@ -285,14 +296,24 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       };
     }
 
-    if (assignedUserIds) {
-      updateData.incidentUsers = {
+    // if (assignedUserIds) {
+    //   updateData.incidentUsers = {
+    //     deleteMany: {},
+    //     create: assignedUserIds.map(userId => ({
+    //       user: { connect: { id: Number(userId) } }
+    //     }))
+    //   };
+    // }
+    if (personneIds) {
+      updateData.incidentPersonnes = {
         deleteMany: {},
-        create: assignedUserIds.map(userId => ({
-          user: { connect: { id: Number(userId) } }
+        create: personneIds.map(personneId => ({
+          personneId: Number(personneId)
         }))
       };
     }
+
+
 
     const attachmentCreates = [
       ...(attachments ?? []).map(att => ({
@@ -315,14 +336,14 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       where: { id: Number(id) },
       data: updateData,
       include: {
-         reporter: {
-            include: {
-              site: true
-            }
-          },
+        reporter: {
+          include: {
+            site: true
+          }
+        },
         incidentSites: { include: { site: true } },
         incidentImpactedSites: { include: { site: true } },
-        incidentUsers: { include: { user: true } },
+        incidentPersonnes: { include: { personne: true } },
         attachments: true,
         tasks: true
       }
@@ -348,7 +369,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       reporterId: String(prismaIncident.reporterId), // ✅ CORRECT
       // 🔥 SERVICE ÉMETTEUR
       serviceEmitter:
-      prismaIncident.reporter?.site?.name ?? null,
+        prismaIncident.reporter?.site?.name ?? null,
       dueDate: prismaIncident.dueDate,
       urgency: prismaIncident.urgency,
       criticality: prismaIncident.criticality,
@@ -374,28 +395,16 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       deletedAt: prismaIncident.deletedAt,
       tasks: prismaIncident.tasks || [],
       sites: prismaIncident.incidentSites?.map((i: any) => i.site) || [],
-
+      // 🔥 AJOUTER CETTE LIGNE
+      otherSubCategory: prismaIncident.otherSubCategory ?? null,
       // ✅ NOUVEAU
       impactedSites:
         prismaIncident.incidentImpactedSites?.map((i: any) => i.site) || [],
-      assignedUsers: prismaIncident.incidentUsers?.map((i: any) => i.user) || [],
+      //assignedUsers: prismaIncident.incidentUsers?.map((i: any) => i.user) || [],
+      personnes:
+        prismaIncident.incidentPersonnes?.map((i: any) => i.personne) || [],
+
       attachments: prismaIncident.attachments || [],
-    };
-  }
-
-  async getStatusStats() {
-    const [open, inProgress, resolved, cancelled] = await Promise.all([
-      prisma.incident.count({ where: { status: 'OPEN' } }),
-      prisma.incident.count({ where: { status: 'IN_PROGRESS' } }),
-      prisma.incident.count({ where: { status: 'RESOLVED' } }),
-      prisma.incident.count({ where: { status: 'CANCELLED' } }),
-    ]);
-
-    return {
-      open,
-      inProgress,
-      closed: resolved,
-      cancelled
     };
   }
 
