@@ -3,12 +3,6 @@ import { Task, CreateTaskDTO } from '../../domain/entities/Task';
 import { CreateAttachmentDTO } from '../../domain/entities/Attachment';
 import { PrismaTaskRepository } from '../../infrastructure/repositories/PrismaTaskRepository';
 
-// export class CreateTaskUseCase {
-//   constructor(private repo: ITaskRepository) {}
-//   async execute(data: CreateTaskDTO): Promise<Task> {
-//     return this.repo.create(data);
-//   }
-// }
 export class CreateTaskUseCase {
   constructor(private repo: ITaskRepository) {}
 
@@ -80,4 +74,12 @@ export class DeleteTaskAttachmentsUseCase {
   async execute(taskId: number): Promise<void> {
     await this.repo.deleteAllAttachments(taskId);
   }
+}
+
+export class AddTaskAttachmentsUseCase {
+    constructor(private taskRepository: PrismaTaskRepository) {}
+
+    async execute(taskId: number, files: Express.Multer.File[]) {
+        return this.taskRepository.addAttachments(taskId, files);
+    }
 }

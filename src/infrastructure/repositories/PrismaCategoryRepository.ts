@@ -26,7 +26,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
     return categories as unknown as Category[];
   }
 
-  async update(id: string, data: Partial<Category>): Promise<Category> {
+  async update(id: number, data: Partial<Category>): Promise<Category> {
     const category = await prisma.category.update({
       where: { id },
       data: { name: data.name }
@@ -34,7 +34,7 @@ export class PrismaCategoryRepository implements ICategoryRepository {
     return category as unknown as Category;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     await prisma.category.update({ 
         where: { id },
         data: { deletedAt: new Date() }

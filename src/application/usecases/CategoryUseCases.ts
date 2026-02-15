@@ -4,9 +4,9 @@ import { PrismaCategoryRepository } from '../../infrastructure/repositories/Pris
 import { Site } from '../../domain/entities/Site';
 
 export class CreateCategoryUseCase {
-  constructor(private repo: PrismaCategoryRepository) {}
+  constructor(private repo: ICategoryRepository) {}
 
-  async execute(data: CreateCategoryDTO): Promise<Site> {
+  async execute(data: CreateCategoryDTO): Promise<Category> {
     return this.repo.create(data);
   }
 }
@@ -21,21 +21,21 @@ export class GetAllCategoriesUseCase {
 
 export class GetCategoryByIdUseCase {
   constructor(private repo: ICategoryRepository) {}
-  async execute(id: string): Promise<Category | null> {
+  async execute(id: number): Promise<Category | null> {
     return this.repo.findById(id);
   }
 }
 
 export class UpdateCategoryUseCase {
   constructor(private repo: ICategoryRepository) {}
-  async execute(id: string, data: Partial<Category>): Promise<Category> {
+  async execute(id: number, data: Partial<Category>): Promise<Category> {
     return this.repo.update(id, data);
   }
 }
 
 export class DeleteCategoryUseCase {
   constructor(private repo: ICategoryRepository) {}
-  async execute(id: string): Promise<void> {
+  async execute(id: number): Promise<void> {
     return this.repo.delete(id);
   }
 }

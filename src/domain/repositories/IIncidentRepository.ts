@@ -1,3 +1,4 @@
+import { PaginatedResult } from '../../shared/types/PaginatedResult';
 import { Incident, CreateIncidentDTO, UpdateIncidentDTO } from '../entities/Incident';
 
 export interface IIncidentRepository {
@@ -14,12 +15,18 @@ export interface IIncidentRepository {
     isAdmin: boolean
   ): Promise<Incident | null>;
 
+  // findAll(
+  //   page?: number,
+  //   limit?: number,
+  //   where?: any,
+  //   orderBy?: any
+  // ): Promise<PaginatedResult<Incident>>;
   findAll(
     skip?: number,
     take?: number,
     where?: any,
     orderBy?: any
-  ): Promise<Incident[]>;
+  ): Promise<PaginatedResult<Incident>>;
 
   update(
     id: string,
@@ -29,12 +36,19 @@ export interface IIncidentRepository {
 
   delete(id: string): Promise<void>;
 
+  // findAllByUser(
+  //   userId: number,
+  //   skip: number,
+  //   take: number,
+  //   filters?: any,
+  //   orderBy?: any
+  // ): Promise<Incident[]>;
   findAllByUser(
     userId: number,
-    skip: number,
-    take: number,
-    filters?: any,
+    skip?: number,
+    take?: number,
+    where?: any,
     orderBy?: any
-  ): Promise<Incident[]>;
+  ): Promise<PaginatedResult<Incident>>;
 
 }

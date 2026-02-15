@@ -167,11 +167,30 @@ export class PrismaTaskRepository implements ITaskRepository {
     });
   }
 
-async deleteAllAttachments(taskId: number): Promise<void> {
-  await prisma.attachment.deleteMany({
-    where: { taskId }
-  });
-}
+  async deleteAllAttachments(taskId: number): Promise<void> {
+    await prisma.attachment.deleteMany({
+      where: { taskId }
+    });
+  }
+
+  async addAttachments(taskId: number, files: Express.Multer.File[]) {
+      return prisma.task.update({
+          where: { id: taskId },
+          data: {
+              attachments: {
+                  create: files.map(file => ({
+                      fileName: file.originalname,
+                      mimeType: file.mimetype,
+                      size: file.size,
+                      url: `/uploads/tasks/${file.filename}` // ou ton stockage réel
+                  }))
+              }
+          },
+          include: {
+              attachments: true
+          }
+      });
+  }
 
 
 }

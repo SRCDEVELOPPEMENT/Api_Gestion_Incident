@@ -7,7 +7,8 @@ import {
     UpdateTaskUseCase, 
     DeleteTaskUseCase, 
     GetTaskByIdUseCase,
-    DeleteTaskAttachmentsUseCase
+    DeleteTaskAttachmentsUseCase,
+    AddTaskAttachmentsUseCase
 } from '../../../application/usecases/TaskUseCases';
 import { z } from 'zod';
 
@@ -51,29 +52,6 @@ export class TaskController {
         return res.status(400).json({ error: error.message });
     }
     }
-
-    // static async getAll(req: Request, res: Response, next: NextFunction) {
-    // try {
-    //     const user = (req as any).user;
-
-    //     const page = Number(req.query.page) || 1;
-    //     const size = Number(req.query.size) || 10;
-
-    //     const repo = new PrismaTaskRepository();
-    //     const useCase = new GetAllTasksUseCase(repo);
-
-    //     const tasks = await useCase.execute({
-    //     userId: user.id,
-    //     role: user.roles?.[0] ?? 'USER',
-    //     page,
-    //     size
-    //     });
-
-    //     return res.json(tasks);
-    // } catch (err) {
-    //     next(err);
-    // }
-    // }
 
     static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
@@ -160,6 +138,41 @@ export class TaskController {
     } catch (error: any) {
         return res.status(400).json({ error: error.message });
     }
+    }
+
+    static async addAttachments(req: Request, res: Response) {
+        try {
+            const authUser = (req as any).user;
+            if (!authUser?.id) {
+                return res.status(401).json({ message: 'Unauthorized' });
+            }
+
+            const taskId = Number(req.params.taskId);
+
+            if (Number.isNaN(taskId)) {
+                return res.status(400).json({ message: 'Invalid taskId' });
+            }
+
+            // ⚠️ multer doit être actif sur la route
+            const files = req.files as Express.Multer.File[] | undefined;
+
+            if (!files || files.length === 0) {
+                return res.status(400).json({ message: 'No files uploaded' });
+            }
+
+            const repo = new PrismaTaskRepository();
+
+            // ⚠️ Tu dois créer ce UseCase (voir section suivante)
+            const useCase = new AddTaskAttachmentsUseCase(repo);
+
+            const result = await useCase.execute(taskId, files);
+
+            return res.status(200).json(result);
+
+        } catch (error: any) {
+            console.error(error);
+            return res.status(400).json({ error: error.message });
+        }
     }
 
 }

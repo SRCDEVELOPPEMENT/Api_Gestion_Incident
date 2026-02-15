@@ -39,13 +39,6 @@ const incidentSchema = z.object({
   otherSubCategory: z.string().optional(),
   processDomainId: z.string().optional(),
   subProcessId: z.string().optional(),
-  // assignedUserIds: z.preprocess(
-  //   (val) => {
-  //     if (!val) return [];
-  //     return Array.isArray(val) ? val : [val];
-  //   },
-  //   z.array(z.string()).optional()
-  // ),
   personneIds: z.preprocess(
     (val) => {
       if (!val) return [];
@@ -110,44 +103,22 @@ export class IncidentController {
     }
   }
 
+
   static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
       const repo = new PrismaIncidentRepository();
-      const useCase = new GetAllIncidentsUseCase(repo);
 
-      const page = Number((req as any).query.page) || 1;
-      const size = Number((req as any).query.size) || 10;
-      const sortBy = (req as any).query.sortBy as string;
-      const sortOrder = (req as any).query.sortOrder as 'asc' | 'desc';
+      const result = await repo.findAll(page, limit);
 
-      // 🔐 utilisateur authentifié (source unique de vérité)
-      const user = (req as any).user;
-      if (!user) {
-        return (res as any).status(401).json({ message: 'Unauthorized' });
-      }
+      return res.json(result);
 
-      // 🔎 filtres AUTORISÉS (sans userId venant du front)
-      const filters: any = {};
-      if ((req as any).query.status) {
-        filters.status = (req as any).query.status;
-      }
-
-      const incidents = await useCase.execute({
-        page,
-        size,
-        userId: Number(user.id),
-        role: user.roles?.[0] ?? 'USER',
-        filters,
-        sortBy,
-        sortOrder
-      });
-
-      return (res as any).json(incidents);
     } catch (error) {
-      (next as any)(error);
+      next(error);
     }
   }
-
 
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
@@ -160,8 +131,6 @@ export class IncidentController {
       const useCase = new GetIncidentByIdUseCase(repo);
 
       const user = (req as any).user as AuthUser;
-      // const isAdmin =
-      //   user.roles?.some(r => r.role.name === 'ADMIN') ?? false;
 
       const isAdmin =
         user.roles?.some((r: any) =>
@@ -397,28 +366,6 @@ export class IncidentController {
 
     return res.download(filePath, attachment.fileName);
   }
-
-  // static async getStatusStats(req: any, res: any) {
-  //   try {
-
-  //     const user = req.user;
-  //     console.log("USER BACKEND 👉", user);
-  //     const incidentService = new IncidentService();
-
-  //     const stats = await incidentService.getStatusStats({
-  //       id: user.id,
-  //       roles: user.roles,
-  //       siteId: user.siteId
-  //     });
-
-  //     console.log("STATS BACKEND 👉", stats);
-  //     res.json(stats);
-
-  //   } catch (error) {
-  //     console.error(error);
-  //     res.status(500).json({ message: 'Erreur récupération stats' });
-  //   }
-  // }
 
   static async getStatusStats(req: any, res: any) {
     try {

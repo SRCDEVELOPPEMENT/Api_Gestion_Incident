@@ -1,6 +1,8 @@
 import { IIncidentRepository } from '../../domain/repositories/IIncidentRepository';
 import { CreateIncidentDTO, UpdateIncidentDTO, Incident } from '../../domain/entities/Incident';
 import { generateIncidentReference } from '../utils/incidentReference';
+import { PaginatedResult } from '../../shared/types/PaginatedResult';
+import { BadRequestError } from '../../domain/errors/AppError';
 
 export class CreateIncidentUseCase {
   constructor(private readonly repo: IIncidentRepository) { }
@@ -33,7 +35,7 @@ export class CreateIncidentUseCase {
     // }
 
     if (data.subCategoryId && data.otherSubCategory) {
-      throw new Error(
+      throw new BadRequestError(
         'subCategoryId et otherSubCategory sont mutuellement exclusifs'
       );
     }
@@ -98,7 +100,7 @@ export class GetAllIncidentsUseCase {
     filters?: any;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }): Promise<Incident[]> {
+  }): Promise<PaginatedResult<Incident>> {
     const skip = (params.page - 1) * params.size;
 
     const orderBy = params.sortBy

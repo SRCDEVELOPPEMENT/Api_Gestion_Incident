@@ -1,5 +1,6 @@
 import { ISiteRepository } from '../../domain/repositories/ISiteRepository';
 import { Site, CreateSiteDTO } from '../../domain/entities/Site';
+import { PaginatedResult } from '../../shared/types/PaginatedResult';
 
 export class CreateSiteUseCase {
   constructor(private repo: ISiteRepository) {}
@@ -8,12 +9,24 @@ export class CreateSiteUseCase {
   }
 }
 
-export class GetAllSitesUseCase {
-  constructor(private repo: ISiteRepository) {}
-  async execute(skip: number, take: number): Promise<Site[]> {
-    return this.repo.findAll(skip, take);
+// export class GetAllSitesUseCase {
+//   constructor(private repo: ISiteRepository) {}
+//   async execute(skip: number, take: number): Promise<Site[]> {
+//     return this.repo.findAll(skip, take);
+//   }
+// }
+
+  export class GetAllSitesUseCase {
+    constructor(private repo: ISiteRepository) {}
+
+    async execute(
+      skip: number,
+      take: number
+    ): Promise<PaginatedResult<Site>> {
+      return this.repo.findAll(skip, take);
+    }
   }
-}
+
 
 export class GetSiteByIdUseCase {
   constructor(private repo: ISiteRepository) {}

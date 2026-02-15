@@ -50,4 +50,11 @@ router.delete(
   TaskController.deleteAllAttachments
 );
 
+router.post(
+    '/:taskId/attachments',
+  requireRole("ADMIN", "EMPLOYE"),
+    upload.array('attachments'),
+    TaskController.addAttachments
+);
+
 export default router;

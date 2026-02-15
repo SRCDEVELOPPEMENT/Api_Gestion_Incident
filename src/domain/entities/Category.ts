@@ -7,7 +7,7 @@ export interface SubCategory {
 export interface Category {
   id: string;
   name: string;
-  userId: string;
+  userId: number;
   subCategories?: SubCategory[];
   createdAt: Date;
   updatedAt: Date;

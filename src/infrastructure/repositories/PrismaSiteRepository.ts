@@ -17,13 +17,38 @@ export class PrismaSiteRepository implements ISiteRepository {
     return site as unknown as Site;
   }
 
-  async findAll(skip: number = 0, take: number = 20): Promise<Site[]> {
-    const sites = await prisma.site.findMany({
-      skip,
-      take,
-      where: { deletedAt: null }
-    });
-    return sites as unknown as Site[];
+    async findAll(
+    page: number = 1,
+    limit: number = 10
+  ): Promise<{
+    data: Site[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+
+    const skip = (page - 1) * limit;
+
+    const [sites, total] = await Promise.all([
+      prisma.site.findMany({
+        skip,
+        take: limit,
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' } // optionnel mais recommandé
+      }),
+      prisma.site.count({
+        where: { deletedAt: null }
+      })
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: sites as unknown as Site[],
+      total,
+      page,
+      totalPages
+    };
   }
 
   async findById(id: number): Promise<Site | null> {

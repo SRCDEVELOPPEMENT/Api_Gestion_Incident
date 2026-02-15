@@ -31,17 +31,17 @@ export class SiteController {
 
   static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-        const page = Number((req as any).query.page) || 1;
-        const size = Number((req as any).query.size) || 10;
-        const skip = (page - 1) * size;
-        
-        const repo = new PrismaSiteRepository();
-        const useCase = new GetAllSitesUseCase(repo);
-        const sites = await useCase.execute(skip, size);
-        return (res as any).json(sites);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
+      const repo = new PrismaSiteRepository();
+      const useCase = new GetAllSitesUseCase(repo);
+
+      const result = await useCase.execute(page, limit);
+
+      return res.json(result);
     } catch (error) {
-        // Fix: Type 'NextFunction' has no call signatures.
-        (next as any)(error);
+      next(error);
     }
   }
 
