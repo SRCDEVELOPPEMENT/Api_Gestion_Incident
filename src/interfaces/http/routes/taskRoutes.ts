@@ -37,6 +37,14 @@ router.patch(
   TaskController.update
 );
 
+router.post(
+    '/:taskId/attachments',
+    requireRole("ADMIN", "EMPLOYE"),
+    upload.array('attachments'),
+    TaskController.addAttachments
+);
+
+
 // Suppression
 router.delete(
   '/:id',
@@ -48,13 +56,6 @@ router.delete(
   '/:taskId/attachments',
   requireRole("ADMIN", "EMPLOYE"),
   TaskController.deleteAllAttachments
-);
-
-router.post(
-    '/:taskId/attachments',
-  requireRole("ADMIN", "EMPLOYE"),
-    upload.array('attachments'),
-    TaskController.addAttachments
 );
 
 export default router;

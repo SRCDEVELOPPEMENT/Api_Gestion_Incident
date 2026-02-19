@@ -80,7 +80,7 @@ async getStatusStats(user: {
     prisma.incident.count({
       where: {
         ...baseWhere,
-        status: 'RESOLVED',
+        status: 'CLOSED',
       },
     }),
     prisma.incident.count({

@@ -29,11 +29,18 @@ export class SubCategoryController {
         }
     }
 
+    // static async getAll(req: Request, res: Response) {
+    //     const repo = new PrismaSubCategoryRepository();
+    //     const useCase = new GetAllSubCategoriesUseCase(repo);
+    //     const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
+    //     return (res as any).json(result);
+    // }
+
     static async getAll(req: Request, res: Response) {
         const repo = new PrismaSubCategoryRepository();
         const useCase = new GetAllSubCategoriesUseCase(repo);
-        const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
-        return (res as any).json(result);
+        const result = await useCase.execute();
+        return res.json(result);
     }
 
     static async getById(req: Request, res: Response) {

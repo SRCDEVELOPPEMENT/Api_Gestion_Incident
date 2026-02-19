@@ -52,13 +52,23 @@ export class CreateIncidentUseCase {
       data.subCategoryId = undefined;
     }
 
-    const dueDate = new Date(data.dueDate);
-    if (isNaN(dueDate.getTime())) {
-      throw new Error('Date d’échéance invalide');
-    }
+    // const dueDate = new Date(data.dueDate);
+    // if (isNaN(dueDate.getTime())) {
+    //   throw new Error('Date d’échéance invalide');
+    // }
 
-    if (dueDate < new Date()) {
-      throw new Error('La date d’échéance ne peut pas être dans le passé');
+    // if (dueDate < new Date()) {
+    //   throw new Error('La date d’échéance ne peut pas être dans le passé');
+    // }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const due = new Date(data.dueDate);
+    due.setHours(0, 0, 0, 0);
+
+    if (due.getTime() < today.getTime()) {
+      throw new Error("La date d’échéance ne peut pas être dans le passé");
     }
 
     const personneIds = Array.isArray(data.personneIds)

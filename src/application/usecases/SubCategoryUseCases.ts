@@ -10,8 +10,11 @@ export class CreateSubCategoryUseCase {
 
 export class GetAllSubCategoriesUseCase {
   constructor(private repo: ISubCategoryRepository) {}
-  async execute(skip: number, take: number): Promise<SubCategory[]> {
-    return this.repo.findAll(skip, take);
+  // async execute(skip: number, take: number): Promise<SubCategory[]> {
+  //   return this.repo.findAll(skip, take);
+  // }
+  async execute(): Promise<SubCategory[]> {
+    return this.repo.findAll();
   }
 }
 

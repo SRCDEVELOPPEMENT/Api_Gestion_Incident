@@ -13,6 +13,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
   ): Promise<Incident> {
 
     const { siteIds, impactedSiteIds, personneIds, ...rest } = data;
+    const [year, month, day] = rest.dueDate.split('-').map(Number);
 
     const created = await prisma.$transaction(async (tx) => {
       return tx.incident.create({
@@ -33,7 +34,9 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           processDomainId: rest.processDomainId
             ? Number(rest.processDomainId)
             : undefined,
-          dueDate: new Date(rest.dueDate),
+          //dueDate: new Date(rest.dueDate),
+          dueDate: new Date(year, month - 1, day),
+
           scope: rest.scope,
           urgency: rest.urgency,
           criticality: rest.criticality,
