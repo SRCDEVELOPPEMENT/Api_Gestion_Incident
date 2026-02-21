@@ -52,15 +52,6 @@ export class CreateIncidentUseCase {
       data.subCategoryId = undefined;
     }
 
-    // const dueDate = new Date(data.dueDate);
-    // if (isNaN(dueDate.getTime())) {
-    //   throw new Error('Date d’échéance invalide');
-    // }
-
-    // if (dueDate < new Date()) {
-    //   throw new Error('La date d’échéance ne peut pas être dans le passé');
-    // }
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -99,6 +90,7 @@ export class CreateIncidentUseCase {
 
 /* ------------------------------------------------------------------ */
 
+
 export class GetAllIncidentsUseCase {
   constructor(private repo: IIncidentRepository) {}
 
@@ -106,33 +98,23 @@ export class GetAllIncidentsUseCase {
     page: number;
     size: number;
     userId: number;
-    role: string;
+    isAdmin: boolean;
     filters?: any;
     sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
+    sortOrder?: "asc" | "desc";
   }): Promise<PaginatedResult<Incident>> {
     const skip = (params.page - 1) * params.size;
 
     const orderBy = params.sortBy
-      ? { [params.sortBy]: params.sortOrder || 'desc' }
-      : undefined;
+      ? ({ [params.sortBy]: params.sortOrder || "desc" } as any)
+      : { createdAt: "desc" };
 
-    // 👑 ADMIN / MANAGER → tout voir
-    if (params.role === 'ADMIN' || params.role === 'MANAGER') {
-      return this.repo.findAll(
-        skip,
-        params.size,
-        params.filters,
-        orderBy
-      );
-    }
-
-    // 👤 USER → uniquement SES incidents
-    return this.repo.findAllByUser(
-      params.userId,
+    return this.repo.findAll(
+      params.userId,     // 🔐 sécurité
+      params.isAdmin,    // 🔐 sécurité
       skip,
       params.size,
-      params.filters,
+      params.filters ?? {},
       orderBy
     );
   }

@@ -16,14 +16,14 @@ router.post(
 /* ---------------- GET ALL ---------------- */
 router.get(
   '/',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   PersonneController.getAll
 );
 
 /* ---------------- GET BY ID ---------------- */
 router.get(
   '/:id',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   PersonneController.getById
 );
 

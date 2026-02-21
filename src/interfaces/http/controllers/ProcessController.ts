@@ -27,11 +27,19 @@ export class ProcessController {
         }
     }
 
+    // static async getAll(req: Request, res: Response) {
+    //     const repo = new PrismaProcessRepository();
+    //     const useCase = new GetAllProcessesUseCase(repo);
+    //     const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
+    //     return (res as any).json(result);
+    // }
+
     static async getAll(req: Request, res: Response) {
-        const repo = new PrismaProcessRepository();
-        const useCase = new GetAllProcessesUseCase(repo);
-        const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
-        return (res as any).json(result);
+    const repo = new PrismaProcessRepository();
+    const useCase = new GetAllProcessesUseCase(repo);
+
+    const result = await useCase.execute();
+    return (res as any).json(result);
     }
 
     static async getById(req: Request, res: Response) {
@@ -43,7 +51,7 @@ export class ProcessController {
 
         const repo = new PrismaProcessRepository();
         const useCase = new GetProcessByIdUseCase(repo);
-        const result = await useCase.execute(id);
+        const result = await useCase.execute(String(id));
         if (!result) return (res as any).status(404).json({ message: 'Not found' });
         return (res as any).json(result);
     }

@@ -7,8 +7,8 @@ const router = Router();
 router.use(authenticate);
 
 router.post('/', requireRole("ADMIN"), SubCategoryController.create);
-router.get('/', requireRole("ADMIN", "EMPLOYE"), SubCategoryController.getAll);
-router.get('/:id', requireRole("ADMIN", "EMPLOYE"), SubCategoryController.getById);
+router.get('/', requireRole("ADMIN", "EMPLOYE", "MANAGER"), SubCategoryController.getAll);
+router.get('/:id', requireRole("ADMIN", "EMPLOYE", "MANAGER"), SubCategoryController.getById);
 router.patch('/:id', requireRole("ADMIN"), SubCategoryController.update);
 router.delete('/:id', requireRole("ADMIN"), SubCategoryController.delete);
 

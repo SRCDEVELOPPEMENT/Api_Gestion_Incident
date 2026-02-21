@@ -7,15 +7,15 @@ const router = Router();
 // 🔐 Auth obligatoire
 router.use(authenticate);
 
-// 🔒 ADMIN / MANAGER uniquement
+// 🔒 ADMIN uniquement
 router.get(
   '/',
-  requireRole('ADMIN', 'MANAGER'),
+  requireRole('ADMIN'),
 );
 
 router.get(
   '/sites',
-  requireRole('ADMIN', 'MANAGER'),
+  requireRole('ADMIN'),
   SiteController.getAll
 );
 

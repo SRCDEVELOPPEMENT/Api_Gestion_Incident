@@ -187,7 +187,7 @@ model Incident {
   urgency       String
   criticality   String
   otherSubCategory String?
-
+  reporterName    String  // ✅ nouveau : nom du déclarant (métier)
   dueDate         DateTime
 
   userId        Int

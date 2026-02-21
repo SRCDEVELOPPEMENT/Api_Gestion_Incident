@@ -29,11 +29,19 @@ export class SubProcessController {
         }
     }
 
+    // static async getAll(req: Request, res: Response) {
+    //     const repo = new PrismaSubProcessRepository();
+    //     const useCase = new GetAllSubProcessesUseCase(repo);
+    //     const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
+    //     return (res as any).json(result);
+    // }
+
     static async getAll(req: Request, res: Response) {
-        const repo = new PrismaSubProcessRepository();
-        const useCase = new GetAllSubProcessesUseCase(repo);
-        const result = await useCase.execute(Number((req as any).query.skip) || 0, Number((req as any).query.take) || 20);
-        return (res as any).json(result);
+    const repo = new PrismaSubProcessRepository();
+    const useCase = new GetAllSubProcessesUseCase(repo);
+
+    const result = await useCase.execute();
+    return (res as any).json(result);
     }
 
     static async getById(req: Request, res: Response) {
@@ -44,14 +52,33 @@ export class SubProcessController {
         }
         const repo = new PrismaSubProcessRepository();
         const useCase = new GetSubProcessByIdUseCase(repo);
-        const result = await useCase.execute(id);
+        const result = await useCase.execute(String(id));
         if (!result) return (res as any).status(404).json({ message: 'Not found' });
         return (res as any).json(result);
     }
 
+    // static async update(req: Request, res: Response) {
+    //     try {
+    //         const data = subProcessSchema.partial().parse((req as any).body);
+    //         const repo = new PrismaSubProcessRepository();
+    //         const useCase = new UpdateSubProcessUseCase(repo);
+    //         const result = await useCase.execute((req as any).params.id, data);
+    //         return (res as any).json(result);
+    //     } catch (error: any) {
+    //         return (res as any).status(400).json({ error: error.message });
+    //     }
+    // }
+
     static async update(req: Request, res: Response) {
         try {
             const data = subProcessSchema.partial().parse((req as any).body);
+
+            // Optionnel mais recommandé : empêcher le client de changer l’auteur
+            delete (data as any).userId;
+            delete (data as any).id;
+            delete (data as any).createdAt;
+            delete (data as any).updatedAt;
+
             const repo = new PrismaSubProcessRepository();
             const useCase = new UpdateSubProcessUseCase(repo);
             const result = await useCase.execute((req as any).params.id, data);

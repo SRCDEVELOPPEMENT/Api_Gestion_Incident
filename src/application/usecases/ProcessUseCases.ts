@@ -8,17 +8,25 @@ export class CreateProcessUseCase {
   }
 }
 
+// export class GetAllProcessesUseCase {
+//   constructor(private repo: IProcessRepository) {}
+//   async execute(skip: number, take: number): Promise<Process[]> {
+//     return this.repo.findAll(skip, take);
+//   }
+// }
+
 export class GetAllProcessesUseCase {
   constructor(private repo: IProcessRepository) {}
-  async execute(skip: number, take: number): Promise<Process[]> {
-    return this.repo.findAll(skip, take);
+
+  async execute(): Promise<Process[]> {
+    return this.repo.findAll();
   }
 }
 
 export class GetProcessByIdUseCase {
   constructor(private repo: IProcessRepository) {}
   async execute(id: string): Promise<Process | null> {
-    return this.repo.findById(id);
+    return this.repo.findById(Number(id));
   }
 }
 

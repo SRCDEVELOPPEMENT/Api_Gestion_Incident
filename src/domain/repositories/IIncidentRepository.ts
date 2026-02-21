@@ -15,13 +15,9 @@ export interface IIncidentRepository {
     isAdmin: boolean
   ): Promise<Incident | null>;
 
-  // findAll(
-  //   page?: number,
-  //   limit?: number,
-  //   where?: any,
-  //   orderBy?: any
-  // ): Promise<PaginatedResult<Incident>>;
   findAll(
+    userId: number,
+    isAdmin: boolean,
     skip?: number,
     take?: number,
     where?: any,
@@ -38,17 +34,20 @@ export interface IIncidentRepository {
 
   // findAllByUser(
   //   userId: number,
-  //   skip: number,
-  //   take: number,
-  //   filters?: any,
+  //   skip?: number,
+  //   take?: number,
+  //   where?: any,
   //   orderBy?: any
-  // ): Promise<Incident[]>;
-  findAllByUser(
-    userId: number,
-    skip?: number,
-    take?: number,
-    where?: any,
-    orderBy?: any
-  ): Promise<PaginatedResult<Incident>>;
+  // ): Promise<PaginatedResult<Incident>>;
+
+
+findAllByUser(
+  userId: number,
+  isAdmin: boolean, // ✅ ADMIN ou MANAGER => voit tout
+  skip?: number,
+  take?: number,
+  where?: any,
+  orderBy?: any
+): Promise<PaginatedResult<Incident>>;
 
 }

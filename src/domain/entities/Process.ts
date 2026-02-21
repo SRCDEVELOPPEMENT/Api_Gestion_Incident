@@ -13,4 +13,8 @@ export interface Process {
   deletedAt?: Date | null;
 }
 
-export type CreateProcessDTO = Pick<Process, 'name'>;
+// export type CreateProcessDTO = Pick<Process, 'name'>;
+export type CreateProcessDTO = {
+  name: string;
+  userId: number; // ou number selon ton schema Prisma
+};

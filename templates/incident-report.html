@@ -133,9 +133,17 @@
   <h1>FICHE DE DÉCLARATION INCIDENT {{reference}}</h1>
 
   <table>
+
     <tr>
+      <td class="label">Déclarant</td>
+      <td>{{creator}}</td>
       <td class="label">Site Incident</td>
       <td>{{incidentSite}}</td>
+    </tr>
+
+    <tr>
+      <td class="label">Site / Service Émetteur</td>
+      <td>{{emitterService}}</td>
       <td class="label">Récepteur Incident</td>
       <td>{{receiverService}}</td>
     </tr>
@@ -148,20 +156,20 @@
     <tr>
       <td><strong>Personnes assignées</strong></td>
       <td>{{personnes}}</td>
-      <td class="label">Site / Service Émetteur</td>
-      <td>{{emitterService}}</td>
-    </tr>
-    <tr>
       <td class="label">Statut</td>
       <td>{{status}}</td>
-      <td class="label">Priorité</td>
-      <td>{{priority}}</td>
     </tr>
     <tr>
       <td class="label">Catégorie Incident</td>
       <td>{{category}}</td>
       <td class="label">Processus Impacté</td>
       <td>{{process}}</td>
+    </tr>
+    <tr>
+      <td class="label">Urgence</td>
+      <td>{{criticality}}</td>
+      <td class="label">Priorité</td>
+      <td>{{priority}}</td>
     </tr>
   </table>
 

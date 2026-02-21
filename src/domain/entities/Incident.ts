@@ -15,6 +15,7 @@ export interface Incident {
   subCategoryId: string;
   processDomainId?: string;
   dueDate: Date;
+  reporterName: string; // ✅ nouveau
   scope?: string | null;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
@@ -41,6 +42,7 @@ export type CreateIncidentDTO = {
   description: string;
   subProcessId?: string; // ✅ OPTIONNEL
   subCategoryId?: string;
+  reporterName: string;
   siteIds: string[];
   impactedSiteIds: string[];
   //assignedUserIds?: string[];
@@ -63,6 +65,7 @@ export type UpdateIncidentDTO = Partial<{
   processDomainId?: string;
   dueDate: string;
   scope: string;
+  reporterName: string;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';

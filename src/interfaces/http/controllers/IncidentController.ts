@@ -18,8 +18,11 @@ import path from 'path';
 import { IncidentPdfService } from '../../../domain/services/IncidentPdfService';
 import { AuthUser } from '../../../domain/entities/AuthUser';
 import { IncidentService } from '../../../services/IncidentService';
+import { IncidentQuerySchema } from "../../../presentation/http/schemas/IncidentQuerySchema";
+import { buildIncidentWhere } from "../../../presentation/http/mappers/incidentFilterMapper";
 
 const incidentSchema = z.object({
+  reporterName: z.string().min(2, "Nom du déclarant obligatoire"), // ✅ AJOUT
   description: z.string().min(5),
   scope: z.string().optional().nullable(),
   siteIds: z.preprocess(
@@ -51,6 +54,22 @@ const incidentSchema = z.object({
   criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique']),
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'CANCELLED']).optional(),
 });
+
+
+  function hasAdminLikeAccess(user: any): boolean {
+    return (
+      user?.roles?.some((r: any) =>
+        typeof r === "string"
+          ? r === "ADMIN" || r === "MANAGER" || r === "CONTROLEUR"
+          : r?.name === "ADMIN" ||
+            r?.role?.name === "ADMIN" ||
+            r?.name === "MANAGER" ||
+            r?.role?.name === "MANAGER" ||
+            r?.name === "CONTROLEUR" ||
+            r?.role?.name === "CONTROLEUR"
+      ) ?? false
+    );
+  }
 
 export class IncidentController {
 
@@ -106,15 +125,35 @@ export class IncidentController {
 
   static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const authUser = (req as any).user as AuthUser | undefined;
+      if (!authUser?.id) return res.status(401).json({ message: "Unauthorized" });
+
+      const rawPage = Number(req.query.page);
+      const rawSize = Number(req.query.size ?? req.query.limit);
+
+      const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+      const size = Number.isFinite(rawSize) && rawSize > 0 ? Math.min(rawSize, 100) : 10;
+
+      const userId = Number(authUser.id);
+      if (Number.isNaN(userId)) return res.status(400).json({ message: "Invalid user id" });
+
+      const skip = (page - 1) * size;
+      const take = size;
+
+      const isAdmin = hasAdminLikeAccess(authUser);
 
       const repo = new PrismaIncidentRepository();
 
-      const result = await repo.findAll(page, limit);
+      const result = await repo.findAll(
+        userId,
+        isAdmin,
+        skip,
+        take,
+        {},
+        { createdAt: "desc" }
+      );
 
       return res.json(result);
-
     } catch (error) {
       next(error);
     }
@@ -132,12 +171,8 @@ export class IncidentController {
 
       const user = (req as any).user as AuthUser;
 
-      const isAdmin =
-        user.roles?.some((r: any) =>
-          typeof r === 'string'
-            ? r === 'ADMIN'
-            : r?.name === 'ADMIN' || r?.role?.name === 'ADMIN'
-      ) ?? false;
+      // ✅ ADMIN ou MANAGER = voit tout
+      const isAdmin = hasAdminLikeAccess(user);
 
       const incident = await useCase.execute(
         req.params.id,
@@ -242,111 +277,186 @@ export class IncidentController {
     }
   }
 
+  // static async generatePdf(req: Request, res: Response, next: NextFunction) {
+  //   try {
+
+  //     if (!(req as any).user) {
+  //       return res.status(401).json({ message: 'Unauthorized' });
+  //     }
+
+  //     const incidentId = req.params.id;
+
+  //     const user = (req as any).user as AuthUser;
+
+  //     const isAdmin =
+  //       user.roles?.some((r: any) =>
+  //         typeof r === 'string'
+  //           ? r === 'ADMIN'
+  //           : r?.name === 'ADMIN' || r?.role?.name === 'ADMIN'
+  //       ) ?? false;
+
+  //     const repo = new PrismaIncidentRepository();
+
+  //     const incident = await repo.findById(
+  //       incidentId,
+  //       user.id,
+  //       isAdmin
+  //     );
+
+  //     if (!incident) {
+  //       return res.status(404).json({ message: 'Incident introuvable ou accès refusé' });
+  //     }
+
+  //     const templatePath = path.join(
+  //       process.cwd(),
+  //       'templates/incident-report.html'
+  //     );
+
+  //     const template = await fs.readFile(templatePath, 'utf8');
+
+  //     const receiverSites =
+  //       incident.sites?.length
+  //         ? incident.sites.map(site => site.name).join(', ')
+  //         : '—';
+
+  //     const ImpactedSites =
+  //       incident.impactedSites?.length
+  //         ? incident.impactedSites.map(site => site.name).join(', ')
+  //         : '—';
+
+  //     const emitterService =
+  //       incident.serviceEmitter;
+
+  //     const personnesList =
+  //       incident.personnes?.length
+  //         ? `<ul>${incident.personnes
+  //             .map(p => `<li>${p.fullname}</li>`)
+  //             .join('')}</ul>`
+  //         : '—';
+
+  //     const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
+  //     const logoBuffer = await fs.readFile(logoPath);
+  //     const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+
+  //     const html = template
+  //       .replace('{{reference}}', incident.reference)
+  //       .replace(
+  //         '{{createdAt}}',
+  //         incident.createdAt
+  //           ? new Date(incident.createdAt).toISOString().slice(0, 10)
+  //           : '—'
+  //       )
+  //       .replace(
+  //         '{{dueDate}}',
+  //         incident.dueDate
+  //           ? new Date(incident.dueDate).toISOString().slice(0, 10)
+  //           : '—'
+  //       )        
+  //       .replace('{{creator}}', '—')
+  //       .replace('{{emitterService}}', emitterService ?? '—')
+  //       .replace('{{receiverService}}', receiverSites)
+  //       .replace('{{incidentSite}}', ImpactedSites)
+  //       .replace('{{status}}', incident.status)
+  //       .replace('{{criticality}}', incident.criticality ?? '—')
+  //       .replace('{{priority}}', incident.urgency ?? '—')
+  //       .replace('{{category}}', incident.category ?? '—')
+  //       .replace('{{process}}', incident.processDomain ?? '—')
+  //       .replace('{{cause}}', incident.subCategory ?? '—')
+  //       .replace('{{description}}', incident.description ?? '—')
+  //       .replace('{{personnes}}', personnesList)
+  //       .replace('{{scope}}', incident.scope ?? '—')
+  //       .replace('{{actions}}', '—')
+  //       .replace('{{proposal}}', '—')
+  //       .replace('{{observation}}', '—')
+  //       .replace('{{LOGO_URL}}', logoBase64);
+
+  //     const outputPath = path.join(
+  //       process.cwd(),
+  //       'uploads',
+  //       'incidents',
+  //       `incident_${incident.id}.pdf`
+  //     );
+
+  //     await IncidentPdfService.generate(html, outputPath);
+
+  //     return res.sendFile(outputPath);
+
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
+
   static async generatePdf(req: Request, res: Response, next: NextFunction) {
     try {
-
-      if (!(req as any).user) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
+      if (!(req as any).user) return res.status(401).json({ message: "Unauthorized" });
 
       const incidentId = req.params.id;
-
       const user = (req as any).user as AuthUser;
 
       const isAdmin =
         user.roles?.some((r: any) =>
-          typeof r === 'string'
-            ? r === 'ADMIN'
-            : r?.name === 'ADMIN' || r?.role?.name === 'ADMIN'
+          typeof r === "string"
+            ? r === "ADMIN"
+            : r?.name === "ADMIN" || r?.role?.name === "ADMIN"
         ) ?? false;
 
       const repo = new PrismaIncidentRepository();
-
-      const incident = await repo.findById(
-        incidentId,
-        user.id,
-        isAdmin
-      );
+      const incident = await repo.findById(incidentId, user.id, isAdmin);
 
       if (!incident) {
-        return res.status(404).json({ message: 'Incident introuvable ou accès refusé' });
+        return res.status(404).json({ message: "Incident introuvable ou accès refusé" });
       }
 
-      const templatePath = path.join(
-        process.cwd(),
-        'templates/incident-report.html'
-      );
+      const templatePath = path.join(process.cwd(), "templates", "incident-report.html");
+      const logoPath = path.join(process.cwd(), "assets", "logo.png");
 
-      const template = await fs.readFile(templatePath, 'utf8');
-
-      const receiverSites =
-        incident.sites?.length
-          ? incident.sites.map(site => site.name).join(', ')
-          : '—';
-
-      const ImpactedSites =
-        incident.impactedSites?.length
-          ? incident.impactedSites.map(site => site.name).join(', ')
-          : '—';
-
-      const emitterService =
-        incident.serviceEmitter;
-
-      const personnesList =
-        incident.personnes?.length
-          ? `<ul>${incident.personnes
-              .map(p => `<li>${p.fullname}</li>`)
-              .join('')}</ul>`
-          : '—';
-
-      const logoPath = path.join(process.cwd(), 'assets', 'logo.png');
+      const template = await fs.readFile(templatePath, "utf8");
       const logoBuffer = await fs.readFile(logoPath);
-      const logoBase64 = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      const logoBase64 = `data:image/png;base64,${logoBuffer.toString("base64")}`;
+
+      const receiverSites = incident.sites?.length ? incident.sites.map(s => s.name).join(", ") : "—";
+      const impactedSites = incident.impactedSites?.length ? incident.impactedSites.map(s => s.name).join(", ") : "—";
+      const personnesList =
+        incident.personnes?.length ? `<ul>${incident.personnes.map(p => `<li>${p.fullname}</li>`).join("")}</ul>` : "—";
 
       const html = template
-        .replace('{{reference}}', incident.reference)
-        .replace(
-          '{{createdAt}}',
-          incident.createdAt
-            ? new Date(incident.createdAt).toISOString().slice(0, 10)
-            : '—'
-        )
-        .replace(
-          '{{dueDate}}',
-          incident.dueDate
-            ? new Date(incident.dueDate).toISOString().slice(0, 10)
-            : '—'
-        )        
-        .replace('{{creator}}', '—')
-        .replace('{{emitterService}}', emitterService ?? '—')
-        .replace('{{receiverService}}', receiverSites)
-        .replace('{{incidentSite}}', ImpactedSites)
-        .replace('{{status}}', incident.status)
-        .replace('{{criticality}}', incident.criticality ?? '—')
-        .replace('{{priority}}', incident.urgency ?? '—')
-        .replace('{{category}}', incident.category ?? '—')
-        .replace('{{process}}', incident.processDomain ?? '—')
-        .replace('{{cause}}', incident.subCategory ?? '—')
-        .replace('{{description}}', incident.description ?? '—')
-        .replace('{{personnes}}', personnesList)
-        .replace('{{scope}}', incident.scope ?? '—')
-        .replace('{{actions}}', '—')
-        .replace('{{proposal}}', '—')
-        .replace('{{observation}}', '—')
-        .replace('{{LOGO_URL}}', logoBase64);
+        .replace("{{reference}}", incident.reference)
+        .replace("{{createdAt}}", incident.createdAt ? new Date(incident.createdAt).toISOString().slice(0, 10) : "—")
+        .replace("{{dueDate}}", incident.dueDate ? new Date(incident.dueDate).toISOString().slice(0, 10) : "—")
+        .replace("{{creator}}", incident.reporterName ?? "—")
+        .replace("{{emitterService}}", incident.serviceEmitter ?? "—")
+        .replace("{{receiverService}}", receiverSites)
+        .replace("{{incidentSite}}", impactedSites)
+        .replace("{{status}}", incident.status)
+        .replace("{{criticality}}", incident.criticality ?? "—")
+        .replace("{{priority}}", incident.urgency ?? "—")
+        .replace("{{category}}", incident.category ?? "—")
+        .replace("{{process}}", incident.processDomain ?? "—")
+        .replace("{{cause}}", incident.subCategory ?? "—")
+        .replace("{{description}}", incident.description ?? "—")
+        .replace("{{personnes}}", personnesList)
+        .replace("{{scope}}", incident.scope ?? "—")
+        .replace("{{actions}}", "—")
+        .replace("{{proposal}}", "—")
+        .replace("{{observation}}", "—")
+        .replace("{{LOGO_URL}}", logoBase64);
 
-      const outputPath = path.join(
-        process.cwd(),
-        'uploads',
-        'incidents',
-        `incident_${incident.id}.pdf`
-      );
+      const outDir = path.join(process.cwd(), "uploads", "incidents");
+      await fs.mkdir(outDir, { recursive: true });
 
+      const outputPath = path.join(outDir, `incident_${incident.id}.pdf`);
       await IncidentPdfService.generate(html, outputPath);
 
-      return res.sendFile(outputPath);
+      await fs.access(outputPath);
 
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="incident_${incident.id}.pdf"`);
+
+      return res.sendFile(outputPath, (err) => {
+        if (err) return next(err);
+      });
     } catch (error) {
+      console.error("generatePdf error:", error);
       next(error);
     }
   }
@@ -387,9 +497,12 @@ export class IncidentController {
         return res.status(404).json({ message: "Utilisateur introuvable" });
       }
 
-      const roles = dbUser.roles.map(r => r.role.name);
-
-      const incidentService = new IncidentService();
+      //const roles = dbUser.roles.map(r => r.role.name);
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+            const incidentService = new IncidentService();
 
       const stats = await incidentService.getStatusStats({
         id: dbUser.id,
@@ -402,6 +515,60 @@ export class IncidentController {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Erreur récupération stats' });
+    }
+  }
+
+
+  static async query(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authUser = (req as any).user as AuthUser | undefined;
+      if (!authUser?.id) return res.status(401).json({ message: "Unauthorized" });
+
+      // ✅ log brut
+      console.log("[INCIDENTS QUERY] raw body:", req.body);
+
+      // ✅ body vide => erreur claire
+      if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({
+          message: "Body JSON vide. Vérifie express.json() et Content-Type.",
+        });
+      }
+
+      // ✅ parse Zod
+      const parsed = IncidentQuerySchema.parse(req.body);
+      console.log("[INCIDENTS QUERY] parsed:", parsed);
+
+      const isAdmin = hasAdminLikeAccess(authUser);
+      const userId = Number(authUser.id);
+
+      // ✅ build where + order
+      const whereUI = buildIncidentWhere(parsed.filters, parsed.logic);
+      const orderBy = parsed.sort.length
+        ? parsed.sort.map((s) => ({ [s.field]: s.dir }))
+        : [{ createdAt: "desc" }];
+
+      console.log("[INCIDENTS QUERY] whereUI:", JSON.stringify(whereUI));
+      console.log("[INCIDENTS QUERY] orderBy:", JSON.stringify(orderBy));
+
+      const skip = (parsed.page - 1) * parsed.pageSize;
+      const take = parsed.pageSize;
+
+      const repo = new PrismaIncidentRepository();
+      const result = await repo.findAll(userId, isAdmin, skip, take, whereUI, orderBy as any);
+
+      return res.json(result);
+    } catch (error: any) {
+      // ✅ si ZodError => 400 clair
+      if (error?.name === "ZodError") {
+        console.error("[INCIDENTS QUERY] ZodError:", error.issues);
+        return res.status(400).json({
+          message: "Payload de filtre invalide",
+          issues: error.issues,
+        });
+      }
+
+      console.error("[INCIDENTS QUERY] ERROR:", error);
+      next(error);
     }
   }
 

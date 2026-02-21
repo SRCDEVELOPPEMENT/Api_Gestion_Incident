@@ -56,18 +56,38 @@ export class SubCategoryController {
         return (res as any).json(result);
     }
 
+    // static async update(req: Request, res: Response) {
+    //     try {
+    //         const data = subCategorySchema.partial().parse((req as any).body);
+    //         const repo = new PrismaSubCategoryRepository();
+    //         const useCase = new UpdateSubCategoryUseCase(repo);
+    //         const result = await useCase.execute((req as any).params.id, data);
+    //         return (res as any).json(result);
+    //     } catch (error: any) {
+    //         return (res as any).status(400).json({ error: error.message });
+    //     }
+    // }
+
     static async update(req: Request, res: Response) {
         try {
             const data = subCategorySchema.partial().parse((req as any).body);
+
+            // Empêcher l’update de champs non modifiables (au cas où)
+            delete (data as any).id;
+            delete (data as any).createdAt;
+            delete (data as any).updatedAt;
+            delete (data as any).userId; // recommandé (l’auteur ne doit pas être modifiable)
+
             const repo = new PrismaSubCategoryRepository();
             const useCase = new UpdateSubCategoryUseCase(repo);
+
             const result = await useCase.execute((req as any).params.id, data);
             return (res as any).json(result);
         } catch (error: any) {
             return (res as any).status(400).json({ error: error.message });
         }
     }
-
+        
     static async delete(req: Request, res: Response) {
         const repo = new PrismaSubCategoryRepository();
         const useCase = new DeleteSubCategoryUseCase(repo);

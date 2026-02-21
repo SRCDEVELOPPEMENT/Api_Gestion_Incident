@@ -24,11 +24,12 @@ import roleRoutes from './interfaces/http/routes/roleRoutes';
 import permissionRoutes from './interfaces/http/routes/permissionRoutes';
 import settingsRoutes from './interfaces/http/routes/settingsRoutes';
 import personneRoutes from './interfaces/http/routes/personneRoutes';
+import glpiRoutes from './interfaces/http/routes/glpiRoutes';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // async function startServer() {
 //   // ✅ ICI EXACTEMENT
@@ -103,6 +104,7 @@ app.use('/api/v1/roles', roleRoutes);
 app.use('/api/v1/permissions', permissionRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/api/v1/personnes', personneRoutes);
+app.use("/api/v1/glpi", glpiRoutes);
 
 /* -------------------------------------------------- */
 /* 5. 404 & erreurs                                   */

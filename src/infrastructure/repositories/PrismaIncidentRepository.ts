@@ -6,6 +6,28 @@ import { PaginatedResult } from '../../shared/types/PaginatedResult';
 
 export class PrismaIncidentRepository implements IIncidentRepository {
 
+  private async accessWhere(userId: number, isAdmin: boolean) {
+    if (isAdmin) return { deletedAt: null };
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { siteId: true }
+    });
+
+    if (!user?.siteId) {
+      // aucun site => ne voit rien
+      return { deletedAt: null, id: -1 };
+    }
+
+    return {
+      deletedAt: null,
+      OR: [
+        { reporterId: userId },
+        { incidentSites: { some: { siteId: user.siteId } } }
+      ]
+    };
+  }
+
   async create(
     data: CreateIncidentDTO,
     reporterId: string,
@@ -19,6 +41,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       return tx.incident.create({
         data: {
           // ✅ champs métier explicites
+          reporterName: rest.reporterName, // ✅ AJOUT
           reference: data.reference!,
           description: rest.description,
           categoryId: Number(rest.categoryId),
@@ -37,7 +60,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           //dueDate: new Date(rest.dueDate),
           dueDate: new Date(year, month - 1, day),
 
-          scope: rest.scope,
+          scope: rest.scope ?? "",
           urgency: rest.urgency,
           criticality: rest.criticality,
 
@@ -161,25 +184,28 @@ export class PrismaIncidentRepository implements IIncidentRepository {
   }
 
   async findAll(
-    page: number = 1,
-    limit: number = 10,
+    userId: number,
+    isAdmin: boolean,
+    skip: number = 0,
+    take: number = 10,
     where: Prisma.IncidentWhereInput = {},
-    orderBy: Prisma.IncidentOrderByWithRelationInput = { createdAt: 'desc' }
+    orderBy: Prisma.IncidentOrderByWithRelationInput = { createdAt: "desc" }
   ): Promise<PaginatedResult<Incident>> {
+    const safeTake = Math.max(1, take);
+    const safeSkip = Math.max(0, skip);
 
-    const safePage = Math.max(1, page);
-    const safeLimit = Math.max(1, limit);
-    const skip = (safePage - 1) * safeLimit;
+    // ✅ Filtre sécurité (le “droit de voir”)
+    const access = await this.accessWhere(userId, isAdmin);
 
+    // ✅ On combine : sécurité AND filtres UI
     const whereClause: Prisma.IncidentWhereInput = {
-      deletedAt: null,
-      ...where
+      AND: [access, where],
     };
 
     const [incidents, total] = await Promise.all([
       prisma.incident.findMany({
-        skip,
-        take: safeLimit,
+        skip: safeSkip,
+        take: safeTake,
         where: whereClause,
         orderBy,
         include: {
@@ -192,99 +218,220 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           incidentImpactedSites: { include: { site: true } },
           incidentPersonnes: { include: { personne: true } },
           attachments: true,
-          tasks: true
-        }
+          tasks: true,
+        },
       }),
-      prisma.incident.count({
-        where: whereClause
-      })
+      prisma.incident.count({ where: whereClause }),
     ]);
 
+    const page = Math.floor(safeSkip / safeTake) + 1;
+    const totalPages = Math.ceil(total / safeTake);
+
     return {
-      data: incidents.map(i => this.mapToDomain(i)),
+      data: incidents.map((i) => this.mapToDomain(i)),
       total,
-      page: safePage,
-      totalPages: Math.ceil(total / safeLimit)
+      page,
+      totalPages,
     };
   }
 
+  // async findAllByUser(
+  //   userId: number,
+  //   skip = 0,
+  //   take = 10,
+  //   filters: Prisma.IncidentWhereInput = {},
+  //   orderBy?: Prisma.IncidentOrderByWithRelationInput
+  // ): Promise<PaginatedResult<Incident>> {
+  //   const safeTake = Math.max(1, take);
+  //   const safeSkip = Math.max(0, skip);
+
+  //   // ✅ même règle que partout ailleurs (EMPLOYE => isAdmin=false)
+  //   const access = await this.accessWhere(userId, false);
+
+  //   const whereClause: Prisma.IncidentWhereInput = {
+  //     AND: [access, filters],
+  //   };
+
+  //   const [incidents, total] = await Promise.all([
+  //     prisma.incident.findMany({
+  //       where: whereClause,
+  //       skip: safeSkip,
+  //       take: safeTake,
+  //       orderBy: orderBy ?? { createdAt: "desc" },
+  //       include: {
+  //         reporter: { include: { site: true } },
+  //         category: true,
+  //         processDomain: true,
+  //         subCategory: true,
+  //         subProcess: true,
+  //         incidentSites: { include: { site: true } },
+  //         incidentImpactedSites: { include: { site: true } },
+  //         incidentPersonnes: { include: { personne: true } },
+  //         attachments: true,
+  //         tasks: true,
+  //       },
+  //     }),
+  //     prisma.incident.count({ where: whereClause }),
+  //   ]);
+
+  //   const page = Math.floor(safeSkip / safeTake) + 1;
+  //   const totalPages = Math.ceil(total / safeTake);
+
+  //   return {
+  //     data: incidents.map((i) => this.mapToDomain(i)),
+  //     total,
+  //     page,
+  //     totalPages,
+  //   };
+  // }
 
   async findAllByUser(
     userId: number,
+    isAdmin: boolean,
     skip = 0,
     take = 10,
     filters: Prisma.IncidentWhereInput = {},
     orderBy?: Prisma.IncidentOrderByWithRelationInput
   ): Promise<PaginatedResult<Incident>> {
+    const safeTake = Math.max(1, take);
+    const safeSkip = Math.max(0, skip);
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { siteId: true }
-    });
-
-    if (!user || !user.siteId) {
-      return {
-        data: [],
-        total: 0,
-        page: 1,
-        totalPages: 0
-      };
-    }
+    // ✅ même règle que findAll/findById : ADMIN ou MANAGER => voit tout
+    const access = await this.accessWhere(userId, isAdmin);
 
     const whereClause: Prisma.IncidentWhereInput = {
-      deletedAt: null,
-      AND: [
-        {
-          OR: [
-            { reporterId: userId },
-            {
-              incidentSites: {
-                some: {
-                  siteId: user.siteId
-                }
-              }
-            }
-          ]
-        },
-        filters
-      ]
+      AND: [access, filters],
     };
 
-    // 🔥 1️⃣ TOTAL COUNT
-    const total = await prisma.incident.count({
-      where: whereClause
-    });
-
-    // 🔥 2️⃣ DATA PAGINÉE
-    const incidents = await prisma.incident.findMany({
-      where: whereClause,
-      skip,
-      take,
-      orderBy: orderBy ?? { createdAt: 'desc' },
-      include: {
-        reporter: {
-          include: {
-            site: true
-          }
+    const [incidents, total] = await Promise.all([
+      prisma.incident.findMany({
+        where: whereClause,
+        skip: safeSkip,
+        take: safeTake,
+        orderBy: orderBy ?? { createdAt: "desc" },
+        include: {
+          reporter: { include: { site: true } },
+          category: true,
+          processDomain: true,
+          subCategory: true,
+          subProcess: true,
+          incidentSites: { include: { site: true } },
+          incidentImpactedSites: { include: { site: true } },
+          incidentPersonnes: { include: { personne: true } },
+          attachments: true,
+          tasks: true,
         },
-        incidentSites: { include: { site: true } },
-        incidentPersonnes: { include: { personne: true } },
-        attachments: true,
-        tasks: true
-      }
-    });
+      }),
+      prisma.incident.count({ where: whereClause }),
+    ]);
 
-    const page = Math.floor(skip / take) + 1;
-    const totalPages = Math.ceil(total / take);
+    const page = Math.floor(safeSkip / safeTake) + 1;
+    const totalPages = Math.ceil(total / safeTake);
 
     return {
-      data: incidents.map(i => this.mapToDomain(i)),
+      data: incidents.map((i) => this.mapToDomain(i)),
       total,
       page,
-      totalPages
+      totalPages,
     };
   }
 
+  // async update(
+  //   id: string,
+  //   data: UpdateIncidentDTO,
+  //   files?: Express.Multer.File[]
+  // ): Promise<Incident> {
+
+  //   const { siteIds, impactedSiteIds, personneIds, attachments, ...rest } = data;
+
+  //   const updateData: Prisma.IncidentUncheckedUpdateInput = {
+  //     ...(rest.reporterName !== undefined && { reporterName: rest.reporterName }),
+  //     ...(rest.status && { status: rest.status }), // ✅ CRITIQUE
+  //     ...(rest.description && { description: rest.description }),
+  //     ...(rest.scope !== undefined && { scope: rest.scope }),
+  //     ...(rest.urgency && { urgency: rest.urgency }),
+  //     ...(rest.criticality && { criticality: rest.criticality }),
+  //     ...(rest.subProcessId && { subProcessId: Number(rest.subProcessId) }),
+  //     ...(rest.subCategoryId && { subCategoryId: Number(rest.subCategoryId) }),
+  //     ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
+  //     ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
+  //     ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
+
+  //     ...(personneIds && {
+  //       incidentPersonnes: {
+  //         deleteMany: {},
+  //         create: personneIds.map(id => ({
+  //           personne: { connect: { id: Number(id) } }
+  //         }))
+  //       }
+  //     })
+  //   };
+
+  //   if (siteIds) {
+  //     updateData.incidentSites = {
+  //       deleteMany: {},
+  //       create: siteIds.map(siteId => ({
+  //         site: { connect: { id: Number(siteId) } }
+  //       }))
+  //     };
+  //   }
+
+  //   if (impactedSiteIds) {
+  //     updateData.incidentImpactedSites = {
+  //       deleteMany: {},
+  //       create: impactedSiteIds.map(siteId => ({
+  //         siteId: Number(siteId)
+  //       }))
+  //     };
+  //   }
+
+  //   if (personneIds) {
+  //     updateData.incidentPersonnes = {
+  //       deleteMany: {},
+  //       create: personneIds.map(personneId => ({
+  //         personneId: Number(personneId)
+  //       }))
+  //     };
+  //   }
+
+
+
+  //   const attachmentCreates = [
+  //     ...(attachments ?? []).map(att => ({
+  //       fileName: att.fileName,
+  //       url: att.url,
+  //       uploadedAt: new Date()
+  //     })),
+  //     ...(files ?? []).map(file => ({
+  //       fileName: file.originalname,
+  //       url: `/uploads/incidents/${file.filename}`,
+  //       uploadedAt: new Date()
+  //     }))
+  //   ];
+
+  //   if (attachmentCreates.length > 0) {
+  //     updateData.attachments = { create: attachmentCreates };
+  //   }
+
+  //   const updated = await prisma.incident.update({
+  //     where: { id: Number(id) },
+  //     data: updateData,
+  //     include: {
+  //       reporter: {
+  //         include: {
+  //           site: true
+  //         }
+  //       },
+  //       incidentSites: { include: { site: true } },
+  //       incidentImpactedSites: { include: { site: true } },
+  //       incidentPersonnes: { include: { personne: true } },
+  //       attachments: true,
+  //       tasks: true
+  //     }
+  //   });
+
+  //   return this.mapToDomain(updated);
+  // }
 
   async update(
     id: string,
@@ -294,68 +441,70 @@ export class PrismaIncidentRepository implements IIncidentRepository {
 
     const { siteIds, impactedSiteIds, personneIds, attachments, ...rest } = data;
 
-    const updateData: Prisma.IncidentUncheckedUpdateInput = {
-      ...(rest.status && { status: rest.status }), // ✅ CRITIQUE
-      ...(rest.description && { description: rest.description }),
-      ...(rest.scope !== undefined && { scope: rest.scope }),
-      ...(rest.urgency && { urgency: rest.urgency }),
-      ...(rest.criticality && { criticality: rest.criticality }),
-      ...(rest.subProcessId && { subProcessId: Number(rest.subProcessId) }),
-      ...(rest.subCategoryId && { subCategoryId: Number(rest.subCategoryId) }),
-      ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
-      ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
-      ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
+    // ✅ helper : évite "" -> 0 et autres valeurs vides
+    const hasValue = (v: unknown) =>
+      v !== undefined && v !== null && String(v).trim() !== "";
 
-      ...(personneIds && {
-        incidentPersonnes: {
-          deleteMany: {},
-          create: personneIds.map(id => ({
-            personne: { connect: { id: Number(id) } }
-          }))
-        }
-      })
+    const updateData: Prisma.IncidentUncheckedUpdateInput = {
+      ...(hasValue(rest.reporterName) && { reporterName: String(rest.reporterName).trim() }),
+
+      ...(hasValue(rest.status) && { status: rest.status }),
+      ...(hasValue(rest.description) && { description: rest.description }),
+      ...(rest.scope !== undefined && { scope: rest.scope }),
+
+      ...(hasValue(rest.urgency) && { urgency: rest.urgency }),
+      ...(hasValue(rest.criticality) && { criticality: rest.criticality }),
+
+      ...(hasValue(rest.subProcessId) && { subProcessId: Number(rest.subProcessId) }),
+      ...(hasValue(rest.subCategoryId) && { subCategoryId: Number(rest.subCategoryId) }),
+      ...(hasValue(rest.categoryId) && { categoryId: Number(rest.categoryId) }),
+      ...(hasValue(rest.processDomainId) && { processDomainId: Number(rest.processDomainId) }),
+
+      ...(hasValue(rest.dueDate) && { dueDate: new Date(String(rest.dueDate)) }),
     };
 
-    if (siteIds) {
+    // ✅ Sites responsables
+    if (Array.isArray(siteIds)) {
       updateData.incidentSites = {
         deleteMany: {},
-        create: siteIds.map(siteId => ({
-          site: { connect: { id: Number(siteId) } }
-        }))
+        create: siteIds
+          .filter(hasValue)
+          .map((siteId) => ({ siteId: Number(siteId) })), // ✅ même logique que create()
       };
     }
 
-    if (impactedSiteIds) {
+    // ✅ Sites impactés
+    if (Array.isArray(impactedSiteIds)) {
       updateData.incidentImpactedSites = {
         deleteMany: {},
-        create: impactedSiteIds.map(siteId => ({
-          siteId: Number(siteId)
-        }))
+        create: impactedSiteIds
+          .filter(hasValue)
+          .map((siteId) => ({ siteId: Number(siteId) })),
       };
     }
 
-    if (personneIds) {
+    // ✅ Personnes assignées (UNE SEULE FOIS)
+    if (Array.isArray(personneIds)) {
       updateData.incidentPersonnes = {
         deleteMany: {},
-        create: personneIds.map(personneId => ({
-          personneId: Number(personneId)
-        }))
+        create: personneIds
+          .filter(hasValue)
+          .map((personneId) => ({ personneId: Number(personneId) })),
       };
     }
 
-
-
+    // ✅ PJ (si tu en ajoutes pendant l'update)
     const attachmentCreates = [
-      ...(attachments ?? []).map(att => ({
+      ...(attachments ?? []).map((att) => ({
         fileName: att.fileName,
         url: att.url,
-        uploadedAt: new Date()
+        uploadedAt: new Date(),
       })),
-      ...(files ?? []).map(file => ({
+      ...(files ?? []).map((file) => ({
         fileName: file.originalname,
         url: `/uploads/incidents/${file.filename}`,
-        uploadedAt: new Date()
-      }))
+        uploadedAt: new Date(),
+      })),
     ];
 
     if (attachmentCreates.length > 0) {
@@ -366,22 +515,17 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       where: { id: Number(id) },
       data: updateData,
       include: {
-        reporter: {
-          include: {
-            site: true
-          }
-        },
+        reporter: { include: { site: true } },
         incidentSites: { include: { site: true } },
         incidentImpactedSites: { include: { site: true } },
         incidentPersonnes: { include: { personne: true } },
         attachments: true,
-        tasks: true
-      }
+        tasks: true,
+      },
     });
 
     return this.mapToDomain(updated);
   }
-
 
   async delete(id: string): Promise<void> {
     await prisma.incident.update({
@@ -397,13 +541,14 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       description: prismaIncident.description,
       status: prismaIncident.status,
       reporterId: String(prismaIncident.reporterId), // ✅ CORRECT
+      reporterName: prismaIncident.reporterName ?? "", // ✅ AJOUT
       // 🔥 SERVICE ÉMETTEUR
       serviceEmitter:
         prismaIncident.reporter?.site?.name ?? null,
       dueDate: prismaIncident.dueDate,
       urgency: prismaIncident.urgency,
       criticality: prismaIncident.criticality,
-      scope: prismaIncident.scope,
+      scope: prismaIncident.scope ?? "",
       subProcessId: prismaIncident.subProcessId,
       subCategoryId: prismaIncident.subCategoryId,
       processDomainId: prismaIncident.processDomainId,
@@ -437,5 +582,4 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       attachments: prismaIncident.attachments || [],
     };
   }
-
 }

@@ -10,7 +10,7 @@ router.use(authenticate);
 // Créer une tâche pour un incident
 router.post(
   '/',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   upload.array('attachments'),
   TaskController.create
 );
@@ -18,28 +18,28 @@ router.post(
 // Toutes les tâches (admin / arbitre)
 router.get(
   '/',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   TaskController.getAll
 );
 
 // Détails d’une tâche
 router.get(
   '/:id',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   TaskController.getById
 );
 
 // Mise à jour
 router.patch(
   '/:id',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   upload.array('attachments'),
   TaskController.update
 );
 
 router.post(
     '/:taskId/attachments',
-    requireRole("ADMIN", "EMPLOYE"),
+    requireRole("ADMIN", "EMPLOYE", "MANAGER"),
     upload.array('attachments'),
     TaskController.addAttachments
 );
@@ -48,13 +48,13 @@ router.post(
 // Suppression
 router.delete(
   '/:id',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   TaskController.delete
 );
 
 router.delete(
   '/:taskId/attachments',
-  requireRole("ADMIN", "EMPLOYE"),
+  requireRole("ADMIN", "EMPLOYE", "MANAGER"),
   TaskController.deleteAllAttachments
 );
 

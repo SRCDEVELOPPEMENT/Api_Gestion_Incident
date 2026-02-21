@@ -1,5 +1,5 @@
 import { ISubCategoryRepository } from '../../domain/repositories/ISubCategoryRepository';
-import { SubCategory, CreateSubCategoryDTO } from '../../domain/entities/SubCategory';
+import { SubCategory, CreateSubCategoryDTO, UpdateSubCategoryDTO } from '../../domain/entities/SubCategory';
 import prisma from '../database/prisma';
 
 export class PrismaSubCategoryRepository implements ISubCategoryRepository {
@@ -31,14 +31,24 @@ export class PrismaSubCategoryRepository implements ISubCategoryRepository {
     return subCategories as unknown as SubCategory[];
   }
 
-  async update(id: string, data: Partial<SubCategory>): Promise<SubCategory> {
+  async update(id: number, data: UpdateSubCategoryDTO): Promise<SubCategory> {
+    const { categoryId, ...rest } = data;
+
     const subCategory = await prisma.subCategory.update({
-      where: { id: Number(id) },
-      data
+      where: { id },
+      data: {
+        ...rest,
+
+        // ✅ au lieu de categoryId direct
+        ...(typeof categoryId === "number"
+          ? { category: { connect: { id: categoryId } } }
+          : {}),
+      },
     });
+
     return subCategory as unknown as SubCategory;
   }
-
+  
   async delete(id: string): Promise<void> {
     await prisma.subCategory.update({
       where: { id: Number(id) },

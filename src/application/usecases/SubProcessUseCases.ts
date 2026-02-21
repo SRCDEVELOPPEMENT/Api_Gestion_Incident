@@ -1,5 +1,5 @@
 import { ISubProcessRepository } from '../../domain/repositories/ISubProcessRepository';
-import { SubProcess, CreateSubProcessDTO } from '../../domain/entities/SubProcess';
+import { SubProcess, CreateSubProcessDTO, UpdateSubProcessDTO } from '../../domain/entities/SubProcess';
 
 export class CreateSubProcessUseCase {
   constructor(private repo: ISubProcessRepository) {}
@@ -8,24 +8,42 @@ export class CreateSubProcessUseCase {
   }
 }
 
+// export class GetAllSubProcessesUseCase {
+//   constructor(private repo: ISubProcessRepository) {}
+//   async execute(skip: number, take: number): Promise<SubProcess[]> {
+//     return this.repo.findAll(skip, take);
+//   }
+// }
+
 export class GetAllSubProcessesUseCase {
   constructor(private repo: ISubProcessRepository) {}
-  async execute(skip: number, take: number): Promise<SubProcess[]> {
-    return this.repo.findAll(skip, take);
+
+  async execute(): Promise<SubProcess[]> {
+    return this.repo.findAll();
   }
 }
 
 export class GetSubProcessByIdUseCase {
   constructor(private repo: ISubProcessRepository) {}
   async execute(id: string): Promise<SubProcess | null> {
-    return this.repo.findById(id);
+    return this.repo.findById(Number(id));
   }
 }
 
+// export class UpdateSubProcessUseCase {
+//   constructor(private repo: ISubProcessRepository) {}
+//   async execute(id: string, data: Partial<SubProcess>): Promise<SubProcess> {
+//     return this.repo.update(id, data);
+//   }
+// }
+
 export class UpdateSubProcessUseCase {
   constructor(private repo: ISubProcessRepository) {}
-  async execute(id: string, data: Partial<SubProcess>): Promise<SubProcess> {
-    return this.repo.update(id, data);
+
+  async execute(id: string, data: UpdateSubProcessDTO): Promise<SubProcess> {
+    const subProcessId = Number(id);
+    if (Number.isNaN(subProcessId)) throw new Error("ID invalide");
+    return this.repo.update(subProcessId, data);
   }
 }
 

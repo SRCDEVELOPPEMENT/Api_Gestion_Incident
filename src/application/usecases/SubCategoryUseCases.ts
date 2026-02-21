@@ -1,5 +1,5 @@
 import { ISubCategoryRepository } from '../../domain/repositories/ISubCategoryRepository';
-import { SubCategory, CreateSubCategoryDTO } from '../../domain/entities/SubCategory';
+import { SubCategory, CreateSubCategoryDTO, UpdateSubCategoryDTO } from '../../domain/entities/SubCategory';
 
 export class CreateSubCategoryUseCase {
   constructor(private repo: ISubCategoryRepository) {}
@@ -20,15 +20,18 @@ export class GetAllSubCategoriesUseCase {
 
 export class GetSubCategoryByIdUseCase {
   constructor(private repo: ISubCategoryRepository) {}
-  async execute(id: string): Promise<SubCategory | null> {
+  async execute(id: number): Promise<SubCategory | null> {
     return this.repo.findById(id);
   }
 }
 
 export class UpdateSubCategoryUseCase {
   constructor(private repo: ISubCategoryRepository) {}
-  async execute(id: string, data: Partial<SubCategory>): Promise<SubCategory> {
-    return this.repo.update(id, data);
+
+  async execute(id: string, data: UpdateSubCategoryDTO): Promise<SubCategory> {
+    const subCategoryId = Number(id);
+    if (Number.isNaN(subCategoryId)) throw new Error("ID invalide");
+    return this.repo.update(subCategoryId, data);
   }
 }
 
