@@ -1,3 +1,8 @@
+export interface Type {
+  id: string;
+  name: string;
+}
+
 export interface Site {
   id: string;
   name: string;
@@ -9,6 +14,8 @@ export interface Site {
     username: string;
   };
 
+  typeId?: number;        // 🔹 clé étrangère
+  type?: Type;
   // 🔹 Utilisateurs appartenant au site
   users?: {
     id: number;
@@ -20,28 +27,8 @@ export interface Site {
   deletedAt?: Date | null;
 }
 
-//export type CreateSiteDTO = Pick<Site, 'name' | 'userId'>;
 export type CreateSiteDTO = {
   name: string;
   createdByUserId: number;
-};
-
-export interface SiteType {
-  id: number;
-  name: string;
-
-  createdByUserId: number;
-  createdBy?: {
-    id: number;
-    username: string;
-  };
-
-  createdAt: Date;
-  updatedAt: Date;
-  deletedAt?: Date | null;
-}
-
-export type CreateSiteTypeDTO = {
-  name: string;
-  createdByUserId: number;
+  typeId?: number;   // 🔹 obligatoire si relation 1-1
 };

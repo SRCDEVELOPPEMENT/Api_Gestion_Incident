@@ -27,7 +27,7 @@ export class UserRoleController {
       const roleRepo = new PrismaRoleRepository();
       
       const useCase = new AssignRoleToUserUseCase(userRoleRepo, userRepo, roleRepo);
-      await useCase.execute(userId, roleId);
+      await useCase.execute(Number(userId), Number(roleId));
       
       return (res as any).status(201).json({ message: 'Role assigned successfully' });
     } catch (error) {
@@ -46,7 +46,7 @@ export class UserRoleController {
       const roleRepo = new PrismaRoleRepository();
       
       const useCase = new RevokeRoleFromUserUseCase(userRoleRepo, userRepo, roleRepo);
-      await useCase.execute(userId, roleId);
+      await useCase.execute(Number(userId), Number(roleId));
       
       return (res as any).status(204).send();
     } catch (error) {

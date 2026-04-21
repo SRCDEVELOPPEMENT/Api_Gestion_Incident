@@ -1,6 +1,5 @@
 import { ISiteRepository } from '../../domain/repositories/ISiteRepository';
 import { CreateSiteDTO, Site } from '../../domain/entities/Site';
-// import { PrismaSiteRepository } from '../../infrastructure/repositories/PrismaSiteRepository';
 
 export class CreateSiteUseCase {
   constructor(private siteRepository: ISiteRepository) {}

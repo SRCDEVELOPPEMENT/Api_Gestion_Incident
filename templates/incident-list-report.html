@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Incidents filtrés</title>
+    <style>
+      /* ===========================
+         GLOBAL
+      ============================ */
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        color: #111;
+        margin: 20px;
+        line-height: 1.4;
+      }
+
+      /* ===========================
+         HEADER (repris de la fiche incident)
+      ============================ */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #2e7d32;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+      }
+
+      .header img {
+        height: 48px;
+      }
+
+      .header-right {
+        text-align: right;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
+      /* ===========================
+         TITRE
+      ============================ */
+      h1 {
+        text-align: center;
+        font-size: 16px;
+        margin: 16px 0 10px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* ===========================
+         META
+      ============================ */
+      .meta {
+        font-size: 11px;
+        color: #444;
+        text-align: center;
+        margin-bottom: 12px;
+      }
+
+      /* ===========================
+         TABLE
+      ============================ */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 6px;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f4f4f4;
+        text-align: left;
+      }
+
+      .small {
+        font-size: 11px;
+        color: #333;
+      }
+
+      /* ===========================
+         PRINT FIXES (PUPPETEER)
+      ============================ */
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ✅ En-tête identique à la fiche incident -->
+    <div class="header">
+      <img src="{{LOGO_URL}}" />
+      <div class="header-right">
+        <strong>SOREPCO SA</strong><br/>
+        Commerce Général - Import - Export<br/>
+        Douala - Cameroun
+      </div>
+    </div>
+
+    <!-- ✅ Contenu existant (logique inchangée) -->
+    <h1>INCIDENTS FILTRÉS</h1>
+    <div class="meta">Exporté le : {{EXPORT_AT}}</div>
+    <div class="meta">Total : {{TOTAL}}</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>Ticket GLPI</th>
+          <th>Description</th>
+          <th>Statut</th>
+          <th>Priorité</th>
+          <th>Service émetteur</th>
+          <th>Service traitant (sites)</th>
+          <th>Créé le</th>
+          <th>Échéance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ROWS}}
+      </tbody>
+    </table>
+  </body>
+</html>

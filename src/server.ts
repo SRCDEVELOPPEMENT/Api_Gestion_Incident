@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import incidentRoutes from './interfaces/http/routes/incidentRoutes';
 import authRoutes from './interfaces/http/routes/authRoutes';
 import siteRoutes from './interfaces/http/routes/siteRoutes';
-import siteTypeRoutes from './interfaces/http/routes/siteTypeRoutes';
+import typeRoutes from './interfaces/http/routes/TypeRoutes';
 import userRoutes from './interfaces/http/routes/userRoutes';
 import taskRoutes from './interfaces/http/routes/taskRoutes';
 import processRoutes from './interfaces/http/routes/processRoutes';
@@ -25,6 +25,7 @@ import permissionRoutes from './interfaces/http/routes/permissionRoutes';
 import settingsRoutes from './interfaces/http/routes/settingsRoutes';
 import personneRoutes from './interfaces/http/routes/personneRoutes';
 import glpiRoutes from './interfaces/http/routes/glpiRoutes';
+import incidentCommentRoutes from './interfaces/http/routes/incidentCommentRoutes';
 
 dotenv.config();
 
@@ -93,7 +94,7 @@ app.use('/api/v1', auditLogger);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/incidents', incidentRoutes);
 app.use('/api/v1/sites', siteRoutes);
-app.use('/api/v1/site-types', siteTypeRoutes);
+app.use('/api/v1/types', typeRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/processes', processRoutes);
@@ -105,6 +106,7 @@ app.use('/api/v1/permissions', permissionRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/api/v1/personnes', personneRoutes);
 app.use("/api/v1/glpi", glpiRoutes);
+app.use("/api/v1/incident-comments", incidentCommentRoutes);
 
 /* -------------------------------------------------- */
 /* 5. 404 & erreurs                                   */

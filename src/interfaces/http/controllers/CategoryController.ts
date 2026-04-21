@@ -50,10 +50,16 @@ export class CategoryController {
 
     static async update(req: Request, res: Response) {
         try {
+
+            const id = Number(req.params.id);
+            if (!Number.isFinite(id)) {
+                return res.status(400).json({ error: "ID invalide" });
+            }
+
             const data = categorySchema.partial().parse((req as any).body);
             const repo = new PrismaCategoryRepository();
             const useCase = new UpdateCategoryUseCase(repo);
-            const result = await useCase.execute((req as any).params.id, data);
+            const result = await useCase.execute(id, data);
             return (res as any).json(result);
         } catch (error: any) {
             return (res as any).status(400).json({ error: error.message });

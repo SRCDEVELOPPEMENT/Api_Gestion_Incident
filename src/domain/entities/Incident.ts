@@ -1,8 +1,11 @@
 import { Task } from './Task';
 import { Site } from './Site';
-import { User } from './User';
 import { Attachment } from './Attachment';
 import { Personne } from './Personne';
+import { IncidentComment } from './IncidentComment';
+import { SubCategory } from './SubCategory';
+import { Category } from './Category';
+import { SubProcess } from './SubProcess';
 
 export interface Incident {
   id: string;
@@ -16,20 +19,26 @@ export interface Incident {
   processDomainId?: string;
   dueDate: Date;
   reporterName: string; // ✅ nouveau
+  glpiTicketId: number | null; // ✅ nouveau
   scope?: string | null;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
   serviceEmitter?: string | null;
   // Relations
   categoryId: string;
+  category?: Category[];
+  subCategory?: SubCategory[];
+  subProcess?: SubProcess[];
+  otherSubCategory?: string | null;
+  comments?: string | null;
   tasks?: Task[];
   sites?: Site[];
-  //impactedSites?: Site[];
+  incidentComments?: IncidentComment[];
   impactedSites: {
     id: number;
     name: string;
   }[];
-  //assignedUsers?: User[]; // Users assigned to the incident
+  processDomain?: string | null;
   personnes?: Personne[];
   attachments?: Attachment[];
   createdAt: Date;
@@ -43,6 +52,7 @@ export type CreateIncidentDTO = {
   subProcessId?: string; // ✅ OPTIONNEL
   subCategoryId?: string;
   reporterName: string;
+  glpiTicketId?: number | null;
   siteIds: string[];
   impactedSiteIds: string[];
   //assignedUserIds?: string[];
@@ -66,6 +76,7 @@ export type UpdateIncidentDTO = Partial<{
   dueDate: string;
   scope: string;
   reporterName: string;
+  glpiTicketId: number | null;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';

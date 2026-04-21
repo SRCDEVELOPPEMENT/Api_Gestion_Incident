@@ -11,3 +11,15 @@ export const glpiPool = mysql.createPool({
   queueLimit: 0,
   timezone: "Z",
 });
+
+// ✅ TEST DE CONNEXION AU DÉMARRAGE
+(async () => {
+  try {
+    const connection = await glpiPool.getConnection();
+    console.log("✅ Connexion MySQL GLPI établie avec succès");
+    connection.release();
+  } catch (error) {
+    console.error("❌ Impossible de se connecter à MySQL GLPI");
+    console.error(error);
+  }
+})();

@@ -7,7 +7,6 @@ export class PrismaPermissionRepository implements IPermissionRepository {
     const permission = await prisma.permission.create({
       data: {
         code: data.code,
-        description: data.description
       }
     });
     return permission as unknown as Permission;
@@ -37,7 +36,6 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       where: { id : Number(id) },
       data: {
         code: data.code,
-        description: data.description
       }
     });
     return permission as unknown as Permission;

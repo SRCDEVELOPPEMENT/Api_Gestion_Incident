@@ -44,18 +44,9 @@ export function buildIncidentWhere(
             continue;
         }
 
+        
         if (field === "reference") {
             parts.push({ OR: [{ reference: "" }] } as any);
-            continue;
-        }
-
-        // ✅ Services: on considère "vide" = NULL (car FK nullable)
-        if (field === "emitterServiceId") {
-            parts.push({ emitterServiceId: null } as any);
-            continue;
-        }
-        if (field === "receiverServiceId") {
-            parts.push({ receiverServiceId: null } as any);
             continue;
         }
 
@@ -75,19 +66,10 @@ export function buildIncidentWhere(
             continue;
         }
 
-        if (field === "emitterServiceId") {
-            parts.push({ emitterServiceId: { not: null } } as any);
-            continue;
-        }
-        if (field === "receiverServiceId") {
-            parts.push({ receiverServiceId: { not: null } } as any);
-            continue;
-        }
-
         // ⛔ idem : pas de NOT NULL sur champs non-nullables
         continue;
     }
-    
+
     // other ops require a value
     if (isBlank(value)) continue;
 

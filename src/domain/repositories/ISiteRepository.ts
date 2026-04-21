@@ -7,4 +7,15 @@ export interface ISiteRepository {
   findById(id: number): Promise<Site | null>;
   update(id: number, data: Partial<Site>): Promise<Site>;
   delete(id: number): Promise<void>;
+  // ✅ NEW: Get sites by typeId (paginé)
+  findByTypeId(
+    typeId: number,
+    page?: number,
+    limit?: number
+  ): Promise<{
+    data: Site[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }>;
 }

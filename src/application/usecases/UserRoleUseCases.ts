@@ -22,11 +22,11 @@ export class AssignRoleToUserUseCase {
     if (!role) throw new NotFoundError(`Role with ID ${roleId} not found`);
 
     // 3. Vérifier les doublons
-    const exists = await this.userRoleRepo.exists(String(userId), String(roleId));
+    const exists = await this.userRoleRepo.exists(userId, roleId);
     if (exists) throw new BadRequestError('Role is already assigned to this user');
 
     // 4. Assigner
-    await this.userRoleRepo.assign(String(userId), String(roleId));
+    await this.userRoleRepo.assign(userId, roleId);
   }
 }
 
@@ -46,7 +46,7 @@ export class RevokeRoleFromUserUseCase {
     if (!role) throw new NotFoundError(`Role with ID ${roleId} not found`);
 
     // 2. Révoquer (si l'assignation n'existe pas, deleteMany ne lèvera pas d'erreur, ce qui est idempotent)
-    await this.userRoleRepo.revoke(String(userId), String(roleId));
+    await this.userRoleRepo.revoke(userId, roleId);
   }
 }
 
@@ -60,7 +60,7 @@ export class GetUserRolesUseCase {
     const user = await this.userRepo.findById(userId);
     if (!user) throw new NotFoundError(`User with ID ${userId} not found`);
 
-    return this.userRoleRepo.getUserRoles(String(userId));
+    return this.userRoleRepo.getUserRoles(userId);
   }
 }
 
@@ -74,6 +74,6 @@ export class GetRoleUsersUseCase {
     const role = await this.roleRepo.findById(roleId);
     if (!role) throw new NotFoundError(`Role with ID ${roleId} not found`);
 
-    return this.userRoleRepo.getRoleUsers(String(roleId));
+    return this.userRoleRepo.getRoleUsers(roleId);
   }
 }

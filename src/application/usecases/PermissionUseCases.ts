@@ -21,7 +21,7 @@ export class GetAllPermissionsUseCase {
 export class GetPermissionByIdUseCase {
   constructor(private repo: IPermissionRepository) {}
   async execute(id: string): Promise<Permission> {
-    const permission = await this.repo.findById(id);
+    const permission = await this.repo.findById(Number(id));
     if (!permission) throw new NotFoundError('Permission not found');
     return permission;
   }
@@ -30,7 +30,7 @@ export class GetPermissionByIdUseCase {
 export class UpdatePermissionUseCase {
   constructor(private repo: IPermissionRepository) {}
   async execute(id: string, data: UpdatePermissionDTO): Promise<Permission> {
-    const existing = await this.repo.findById(id);
+    const existing = await this.repo.findById(Number(id));
     if (!existing) throw new NotFoundError('Permission not found');
     
     if (data.code && data.code !== existing.code) {
@@ -38,15 +38,15 @@ export class UpdatePermissionUseCase {
        if (duplicate) throw new BadRequestError(`Permission with action '${data.code}' already exists`);
     }
 
-    return this.repo.update(id, data);
+    return this.repo.update(Number(id), data);
   }
 }
 
 export class DeletePermissionUseCase {
   constructor(private repo: IPermissionRepository) {}
   async execute(id: string): Promise<void> {
-    const existing = await this.repo.findById(id);
+    const existing = await this.repo.findById(Number(id));
     if (!existing) throw new NotFoundError('Permission not found');
-    return this.repo.delete(id);
+    return this.repo.delete(Number(id));
   }
 }

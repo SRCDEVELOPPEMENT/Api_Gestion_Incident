@@ -14,9 +14,13 @@ export class PrismaIncidentRepository implements IIncidentRepository {
       select: { siteId: true }
     });
 
+
     if (!user?.siteId) {
-      // aucun site => ne voit rien
-      return { deletedAt: null, id: -1 };
+      // Pas de site, mais il doit voir ses propres incidents
+      return {
+        deletedAt: null,
+        reporterId: userId
+      };
     }
 
     return {
@@ -42,6 +46,10 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         data: {
           // ✅ champs métier explicites
           reporterName: rest.reporterName, // ✅ AJOUT
+          glpiTicketId:
+          rest.glpiTicketId !== undefined && rest.glpiTicketId !== null && String(rest.glpiTicketId).trim() !== ""
+            ? Number(rest.glpiTicketId)
+            : null,
           reference: data.reference!,
           description: rest.description,
           categoryId: Number(rest.categoryId),
@@ -144,18 +152,23 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         select: { siteId: true }
       });
 
-      if (!user?.siteId) return null;
-
-      where.OR = [
-        { reporterId: userId },
-        {
-          incidentSites: {
-            some: {
-              siteId: user.siteId
+      if (!user?.siteId) {
+        // Pas de site : peut voir les incidents dont il est le reporter
+        where.OR = [
+          { reporterId: userId }
+        ];
+      } else {
+        where.OR = [
+          { reporterId: userId },
+          {
+            incidentSites: {
+              some: {
+                siteId: user.siteId
+              }
             }
-          }
-        }
-      ];
+          },
+        ];
+      }
     }
 
     const incident = await prisma.incident.findFirst({
@@ -173,6 +186,17 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         incidentSites: { include: { site: true } },
         incidentImpactedSites: { include: { site: true } },
         incidentPersonnes: { include: { personne: true } },
+        comments: { 
+          include: { user: 
+            {
+              select: {
+                id: true,
+                username: true, // ✅ si ton modèle User a username
+              },
+            }
+           }, 
+          orderBy: { createdAt: "asc" } 
+        },
         attachments: true,
         tasks: true
       }
@@ -235,56 +259,6 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     };
   }
 
-  // async findAllByUser(
-  //   userId: number,
-  //   skip = 0,
-  //   take = 10,
-  //   filters: Prisma.IncidentWhereInput = {},
-  //   orderBy?: Prisma.IncidentOrderByWithRelationInput
-  // ): Promise<PaginatedResult<Incident>> {
-  //   const safeTake = Math.max(1, take);
-  //   const safeSkip = Math.max(0, skip);
-
-  //   // ✅ même règle que partout ailleurs (EMPLOYE => isAdmin=false)
-  //   const access = await this.accessWhere(userId, false);
-
-  //   const whereClause: Prisma.IncidentWhereInput = {
-  //     AND: [access, filters],
-  //   };
-
-  //   const [incidents, total] = await Promise.all([
-  //     prisma.incident.findMany({
-  //       where: whereClause,
-  //       skip: safeSkip,
-  //       take: safeTake,
-  //       orderBy: orderBy ?? { createdAt: "desc" },
-  //       include: {
-  //         reporter: { include: { site: true } },
-  //         category: true,
-  //         processDomain: true,
-  //         subCategory: true,
-  //         subProcess: true,
-  //         incidentSites: { include: { site: true } },
-  //         incidentImpactedSites: { include: { site: true } },
-  //         incidentPersonnes: { include: { personne: true } },
-  //         attachments: true,
-  //         tasks: true,
-  //       },
-  //     }),
-  //     prisma.incident.count({ where: whereClause }),
-  //   ]);
-
-  //   const page = Math.floor(safeSkip / safeTake) + 1;
-  //   const totalPages = Math.ceil(total / safeTake);
-
-  //   return {
-  //     data: incidents.map((i) => this.mapToDomain(i)),
-  //     total,
-  //     page,
-  //     totalPages,
-  //   };
-  // }
-
   async findAllByUser(
     userId: number,
     isAdmin: boolean,
@@ -320,6 +294,11 @@ export class PrismaIncidentRepository implements IIncidentRepository {
           incidentPersonnes: { include: { personne: true } },
           attachments: true,
           tasks: true,
+          comments: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: { user: true },
+          },
         },
       }),
       prisma.incident.count({ where: whereClause }),
@@ -336,102 +315,6 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     };
   }
 
-  // async update(
-  //   id: string,
-  //   data: UpdateIncidentDTO,
-  //   files?: Express.Multer.File[]
-  // ): Promise<Incident> {
-
-  //   const { siteIds, impactedSiteIds, personneIds, attachments, ...rest } = data;
-
-  //   const updateData: Prisma.IncidentUncheckedUpdateInput = {
-  //     ...(rest.reporterName !== undefined && { reporterName: rest.reporterName }),
-  //     ...(rest.status && { status: rest.status }), // ✅ CRITIQUE
-  //     ...(rest.description && { description: rest.description }),
-  //     ...(rest.scope !== undefined && { scope: rest.scope }),
-  //     ...(rest.urgency && { urgency: rest.urgency }),
-  //     ...(rest.criticality && { criticality: rest.criticality }),
-  //     ...(rest.subProcessId && { subProcessId: Number(rest.subProcessId) }),
-  //     ...(rest.subCategoryId && { subCategoryId: Number(rest.subCategoryId) }),
-  //     ...(rest.categoryId && { categoryId: Number(rest.categoryId) }),
-  //     ...(rest.processDomainId && { processDomainId: Number(rest.processDomainId) }),
-  //     ...(rest.dueDate && { dueDate: new Date(rest.dueDate) }),
-
-  //     ...(personneIds && {
-  //       incidentPersonnes: {
-  //         deleteMany: {},
-  //         create: personneIds.map(id => ({
-  //           personne: { connect: { id: Number(id) } }
-  //         }))
-  //       }
-  //     })
-  //   };
-
-  //   if (siteIds) {
-  //     updateData.incidentSites = {
-  //       deleteMany: {},
-  //       create: siteIds.map(siteId => ({
-  //         site: { connect: { id: Number(siteId) } }
-  //       }))
-  //     };
-  //   }
-
-  //   if (impactedSiteIds) {
-  //     updateData.incidentImpactedSites = {
-  //       deleteMany: {},
-  //       create: impactedSiteIds.map(siteId => ({
-  //         siteId: Number(siteId)
-  //       }))
-  //     };
-  //   }
-
-  //   if (personneIds) {
-  //     updateData.incidentPersonnes = {
-  //       deleteMany: {},
-  //       create: personneIds.map(personneId => ({
-  //         personneId: Number(personneId)
-  //       }))
-  //     };
-  //   }
-
-
-
-  //   const attachmentCreates = [
-  //     ...(attachments ?? []).map(att => ({
-  //       fileName: att.fileName,
-  //       url: att.url,
-  //       uploadedAt: new Date()
-  //     })),
-  //     ...(files ?? []).map(file => ({
-  //       fileName: file.originalname,
-  //       url: `/uploads/incidents/${file.filename}`,
-  //       uploadedAt: new Date()
-  //     }))
-  //   ];
-
-  //   if (attachmentCreates.length > 0) {
-  //     updateData.attachments = { create: attachmentCreates };
-  //   }
-
-  //   const updated = await prisma.incident.update({
-  //     where: { id: Number(id) },
-  //     data: updateData,
-  //     include: {
-  //       reporter: {
-  //         include: {
-  //           site: true
-  //         }
-  //       },
-  //       incidentSites: { include: { site: true } },
-  //       incidentImpactedSites: { include: { site: true } },
-  //       incidentPersonnes: { include: { personne: true } },
-  //       attachments: true,
-  //       tasks: true
-  //     }
-  //   });
-
-  //   return this.mapToDomain(updated);
-  // }
 
   async update(
     id: string,
@@ -462,6 +345,18 @@ export class PrismaIncidentRepository implements IIncidentRepository {
 
       ...(hasValue(rest.dueDate) && { dueDate: new Date(String(rest.dueDate)) }),
     };
+
+    // ✅ GLPI ticket: autoriser set / clear
+    if (rest.glpiTicketId !== undefined) {
+      const v = rest.glpiTicketId as any;
+
+      // si null ou "" => on supprime le lien
+      if (v === null || String(v).trim() === "") {
+        (updateData as any).glpiTicketId = null; // ou glpiTicketId
+      } else {
+        (updateData as any).glpiTicketId = Number(v); // ou glpiTicketId
+      }
+    }
 
     // ✅ Sites responsables
     if (Array.isArray(siteIds)) {
@@ -519,6 +414,7 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         incidentSites: { include: { site: true } },
         incidentImpactedSites: { include: { site: true } },
         incidentPersonnes: { include: { personne: true } },
+        comments: { include: { user: true }, orderBy: { createdAt: "asc" } }, // ✅ au bon niveau
         attachments: true,
         tasks: true,
       },
@@ -534,14 +430,71 @@ export class PrismaIncidentRepository implements IIncidentRepository {
     });
   }
 
+  async close(
+    id: string,
+    userId: number,
+    isAdmin: boolean,
+    comment: string
+  ): Promise<Incident> {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) {
+      throw new Error("Invalid incident id");
+    }
+
+    const trimmed = String(comment ?? "").trim();
+    if (!trimmed) throw new Error("Le commentaire de clôture est obligatoire");
+    if (trimmed.length < 3) throw new Error("Le commentaire de clôture est trop court");
+
+    // ✅ sécurité: vérifier que l'user a le droit de voir l'incident
+    const allowed = await this.findById(id, userId, isAdmin);
+    if (!allowed) throw new Error("Incident introuvable ou accès refusé");
+
+    const status = String((allowed as any).status ?? "").toUpperCase();
+    if (status === "CLOSED" || status === "CANCELLED") {
+      throw new Error("Incident déjà clôturé/annulé");
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.incidentComment.create({
+        data: {
+          incidentId: numericId,
+          userId,
+          content: trimmed,
+        },
+      });
+
+      return tx.incident.update({
+        where: { id: numericId },
+        data: { status: "CLOSED" },
+        include: {
+          reporter: { include: { site: true } },
+          category: true,
+          processDomain: true,
+          subCategory: true,
+          subProcess: true,
+          incidentSites: { include: { site: true } },
+          incidentImpactedSites: { include: { site: true } },
+          incidentPersonnes: { include: { personne: true } },
+          attachments: true,
+          tasks: true,
+          comments: { include: { user: true }, orderBy: { createdAt: "asc" } },
+        },
+      });
+    });
+
+    return this.mapToDomain(updated);
+  }
+
   private mapToDomain(prismaIncident: any): Incident {
     return {
       id: String(prismaIncident.id),
+      userId: prismaIncident.userId,
       reference: prismaIncident.reference,
       description: prismaIncident.description,
       status: prismaIncident.status,
       reporterId: String(prismaIncident.reporterId), // ✅ CORRECT
       reporterName: prismaIncident.reporterName ?? "", // ✅ AJOUT
+      glpiTicketId: prismaIncident.glpiTicketId ?? null, // ✅ NOUVEAU
       // 🔥 SERVICE ÉMETTEUR
       serviceEmitter:
         prismaIncident.reporter?.site?.name ?? null,
@@ -580,6 +533,18 @@ export class PrismaIncidentRepository implements IIncidentRepository {
         prismaIncident.incidentPersonnes?.map((i: any) => i.personne) || [],
 
       attachments: prismaIncident.attachments || [],
+      comments: prismaIncident.comments?.map((c: any) => ({
+        id: String(c.id),
+        content: c.content,
+        userId: String(c.userId),
+        createdAt: c.createdAt,
+        user: c.user 
+        ? { 
+          id: String(c.user.id), 
+          username: c.user.username ?? null,
+        } : undefined,
+      })) ?? [],
     };
   }
+  
 }

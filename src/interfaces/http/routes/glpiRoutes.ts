@@ -8,14 +8,26 @@ router.use(authenticate);
 
 router.get(
   "/tickets",
-  requireRole("ADMIN", "MANAGER", "EMPLOYE"),
+  requireRole("ADMIN", "MANAGER", "EMPLOYE", "CONTROLEUR"),
   GlpiController.getTickets
 );
 
 router.get(
   "/users/search",
-  requireRole("ADMIN", "MANAGER", "EMPLOYE"),
+  requireRole("ADMIN", "MANAGER", "EMPLOYE", "CONTROLEUR"),
   GlpiController.searchUsers
+);
+
+router.get(
+  "/tickets/:id",
+  requireRole("ADMIN", "MANAGER", "EMPLOYE", "CONTROLEUR"),
+  GlpiController.getTicketById
+);
+
+router.get(
+  "/tickets/search",
+  requireRole("ADMIN", "MANAGER", "EMPLOYE", "CONTROLEUR"),
+  GlpiController.searchTickets
 );
 
 export default router;

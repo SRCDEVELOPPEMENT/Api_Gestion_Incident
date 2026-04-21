@@ -7,8 +7,8 @@ const router = Router();
 router.use(authenticate);
 
 router.post('/', requireRole("ADMIN"), ProcessController.create);
-router.get('/', requireRole("ADMIN", "EMPLOYE", "MANAGER"), ProcessController.getAll);
-router.get('/:id', requireRole("ADMIN", "EMPLOYE", "MANAGER"), ProcessController.getById);
+router.get('/', requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"), ProcessController.getAll);
+router.get('/:id', requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"), ProcessController.getById);
 router.patch('/:id', requireRole("ADMIN"), ProcessController.update);
 router.delete('/:id', requireRole("ADMIN"), ProcessController.delete);
 

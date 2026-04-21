@@ -9,13 +9,6 @@ export class CreateSiteUseCase {
   }
 }
 
-// export class GetAllSitesUseCase {
-//   constructor(private repo: ISiteRepository) {}
-//   async execute(skip: number, take: number): Promise<Site[]> {
-//     return this.repo.findAll(skip, take);
-//   }
-// }
-
   export class GetAllSitesUseCase {
     constructor(private repo: ISiteRepository) {}
 
@@ -46,5 +39,19 @@ export class DeleteSiteUseCase {
   constructor(private repo: ISiteRepository) {}
   async execute(id: number): Promise<void> {
     return this.repo.delete(id);
+  }
+}
+
+export class GetSitesByTypeIdUseCase {
+  constructor(private repo: ISiteRepository) {}
+
+  async execute(typeId: number, page = 1, limit = 10) {
+    if (!Number.isInteger(typeId) || typeId <= 0) {
+      throw new Error("typeId invalide");
+    }
+    if (!Number.isInteger(page) || page <= 0) page = 1;
+    if (!Number.isInteger(limit) || limit <= 0) limit = 10;
+
+    return this.repo.findByTypeId(typeId, page, limit);
   }
 }

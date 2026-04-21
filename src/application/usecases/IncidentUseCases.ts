@@ -152,3 +152,45 @@ export class DeleteIncidentUseCase {
     return this.repo.delete(id);
   }
 }
+
+export class CloseIncidentUseCase {
+  constructor(private readonly repo: IIncidentRepository) {}
+
+  async execute(params: {
+    id: string;
+    userId: number;
+    isAdmin: boolean;
+    comment: string;
+  }): Promise<Incident> {
+    const { id, userId, isAdmin, comment } = params;
+
+    // 1) Sécurité minimale
+    if (!userId || !Number.isFinite(userId)) {
+      throw new BadRequestError("Utilisateur non authentifié");
+    }
+
+    // 2) Validation commentaire (obligatoire)
+    const trimmed = String(comment ?? "").trim();
+    if (!trimmed) {
+      throw new BadRequestError("Le commentaire de clôture est obligatoire");
+    }
+    if (trimmed.length < 3) {
+      throw new BadRequestError("Le commentaire de clôture est trop court");
+    }
+
+    // 3) Charger l'incident avec la même règle de sécurité
+    const incident = await this.repo.findById(id, userId, isAdmin);
+    if (!incident) {
+      throw new BadRequestError("Incident introuvable");
+    }
+
+    // 4) Règles métier
+    const status = String((incident as any).status ?? "").toUpperCase();
+    if (status === "CLOSED" || status === "CANCELLED") {
+      throw new BadRequestError("Incident déjà clôturé/annulé");
+    }
+
+    // 5) Persistance (appel avec la BONNE signature)
+    return this.repo.close(id, userId, isAdmin, trimmed);
+  }
+}

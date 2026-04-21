@@ -70,6 +70,18 @@ CREATE TABLE [dbo].[Site] (
 );
 
 -- CreateTable
+CREATE TABLE [dbo].[site_types] (
+    [id] INT NOT NULL IDENTITY(1,1),
+    [name] NVARCHAR(1000) NOT NULL,
+    [siteId] INT NOT NULL,
+    [createdByUserId] INT NOT NULL,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [site_types_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    [updatedAt] DATETIME2 NOT NULL,
+    [deletedAt] DATETIME2,
+    CONSTRAINT [site_types_pkey] PRIMARY KEY CLUSTERED ([id])
+);
+
+-- CreateTable
 CREATE TABLE [dbo].[Category] (
     [id] INT NOT NULL IDENTITY(1,1),
     [name] NVARCHAR(1000) NOT NULL,
@@ -128,6 +140,7 @@ CREATE TABLE [dbo].[Incident] (
     [criticality] NVARCHAR(1000) NOT NULL,
     [otherSubCategory] NVARCHAR(1000),
     [reporterName] NVARCHAR(1000) NOT NULL,
+    [glpiTicketId] INT,
     [dueDate] DATETIME2 NOT NULL,
     [userId] INT NOT NULL,
     [reporterId] INT NOT NULL,
@@ -266,6 +279,12 @@ ALTER TABLE [dbo].[RefreshToken] ADD CONSTRAINT [RefreshToken_userId_fkey] FOREI
 
 -- AddForeignKey
 ALTER TABLE [dbo].[Site] ADD CONSTRAINT [Site_createdByUserId_fkey] FOREIGN KEY ([createdByUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[site_types] ADD CONSTRAINT [site_types_siteId_fkey] FOREIGN KEY ([siteId]) REFERENCES [dbo].[Site]([id]) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE [dbo].[site_types] ADD CONSTRAINT [site_types_createdByUserId_fkey] FOREIGN KEY ([createdByUserId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 -- AddForeignKey
 ALTER TABLE [dbo].[Category] ADD CONSTRAINT [Category_userId_fkey] FOREIGN KEY ([userId]) REFERENCES [dbo].[User]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;

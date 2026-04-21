@@ -8,7 +8,6 @@ export interface IIncidentRepository {
     files?: Express.Multer.File[]
   ): Promise<Incident>;
 
-  //findById(id: string, userId: number, isAdmin: boolean): Promise<Incident | null>;
   findById(
     id: string,
     userId: number,
@@ -32,15 +31,6 @@ export interface IIncidentRepository {
 
   delete(id: string): Promise<void>;
 
-  // findAllByUser(
-  //   userId: number,
-  //   skip?: number,
-  //   take?: number,
-  //   where?: any,
-  //   orderBy?: any
-  // ): Promise<PaginatedResult<Incident>>;
-
-
 findAllByUser(
   userId: number,
   isAdmin: boolean, // ✅ ADMIN ou MANAGER => voit tout
@@ -50,4 +40,17 @@ findAllByUser(
   orderBy?: any
 ): Promise<PaginatedResult<Incident>>;
 
+/**
+   * 🔒 Clôture un incident
+   * - Change le statut en CLOSED
+   * - Enregistre la date de clôture
+   * - Enregistre l'utilisateur qui clôture
+   * - Enregistre le commentaire de clôture
+   */
+close(
+  id: string,
+  userId: number,
+  isAdmin: boolean,
+  comment: string
+): Promise<Incident>;
 }

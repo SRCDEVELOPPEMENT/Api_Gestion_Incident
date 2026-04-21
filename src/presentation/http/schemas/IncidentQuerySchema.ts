@@ -12,10 +12,6 @@ const FieldSchema = z.enum([
   "emitterSiteId",
   "receiverSiteId",
 
-  // nouveaux (service-based)
-  "emitterServiceId",
-  "receiverServiceId",
-
   "assignedPersonneId",
   "createdAt",
   "dueDate",

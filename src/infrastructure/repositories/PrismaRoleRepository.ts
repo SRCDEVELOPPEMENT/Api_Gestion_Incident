@@ -8,7 +8,6 @@ export class PrismaRoleRepository implements IRoleRepository {
     const role = await prisma.role.create({
       data: {
         name: data.name,
-        description: data.description
       }
     });
     return role as unknown as Role;
@@ -57,7 +56,6 @@ export class PrismaRoleRepository implements IRoleRepository {
       where: { id },
       data: {
         name: data.name,
-        description: data.description
       }
     });
     return role as unknown as Role;

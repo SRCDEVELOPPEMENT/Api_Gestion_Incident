@@ -7,8 +7,44 @@ import { AuthUser } from '../../domain/entities/AuthUser';
 const prisma = new PrismaClient();
 
 export class PrismaUserRepository implements IUserRepository {
+      async findByResetToken(token: string): Promise<User | null> {
+        const user = await prisma.user.findFirst({
+          where: {
+            resetPasswordToken: token,
+            resetPasswordExpires: { gt: new Date() },
+            deletedAt: null
+          },
+          include: {
+            roles: { include: { role: true } },
+            site: true
+          }
+        });
+        return user ? this.mapToUser(user) : null;
+      }
+
+      async updatePasswordAndClearToken(userId: number, password: string): Promise<void> {
+        const passwordHash = await bcrypt.hash(password, 10);
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            passwordHash,
+            resetPasswordToken: null,
+            resetPasswordExpires: null
+          }
+        });
+      }
+    async saveResetToken(userId: number, token: string, expires: Date): Promise<void> {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          resetPasswordToken: token as any,
+          resetPasswordExpires: expires as any
+        } as any
+      });
+    }
   private prisma: PrismaClient;
-constructor() {
+
+  constructor() {
     this.prisma = new PrismaClient();
   }
 
@@ -16,31 +52,28 @@ constructor() {
     const { password, roleIds, siteId, ...rest } = data;
 
     await prisma.$transaction(async (tx) => {
-      // 🔐 HASH DU MOT DE PASSE SI FOURNI
       let passwordHash: string | undefined;
 
       if (password && password.trim().length > 0) {
         passwordHash = await bcrypt.hash(password, 10);
       }
 
-      // 1️⃣ Mise à jour des champs simples
       await tx.user.update({
         where: { id },
         data: {
           ...rest,
-          ...(siteId !== undefined && { siteId }), // ✅ AJOUT
+          ...(siteId !== undefined && { siteId }),
           ...(passwordHash ? { passwordHash } : {})
         }
       });
 
-      // 2️⃣ Mise à jour des rôles (si fournis)
       if (roleIds) {
         await tx.userRole.deleteMany({
           where: { userId: id }
         });
 
         await tx.userRole.createMany({
-          data: roleIds.map(roleId => ({
+          data: roleIds.map((roleId) => ({
             userId: id,
             roleId
           }))
@@ -48,11 +81,11 @@ constructor() {
       }
     });
 
-    // 3️⃣ Recharger l’utilisateur avec ses rôles
     const userWithRoles = await prisma.user.findUnique({
       where: { id },
       include: {
-        roles: { include: { role: true } }
+        roles: { include: { role: true } },
+        site: true
       }
     });
 
@@ -64,28 +97,26 @@ constructor() {
       where: { id, deletedAt: null },
       include: {
         roles: { include: { role: true } },
-        site: true // ✅ AJOUT
+        site: true
       }
     });
 
     return user ? this.mapToUser(user) : null;
   }
 
-async findAll(skip: number, take: number): Promise<User[]> {
-  const users = await prisma.user.findMany({
-    skip,
-    take,
-    where: { deletedAt: null },
-    include: {
-      roles: { include: { role: true } },
-      site: true // 🔥 AJOUT OBLIGATOIRE
-    }
-  });
+  async findAll(skip: number, take: number): Promise<User[]> {
+    const users = await prisma.user.findMany({
+      skip,
+      take,
+      where: { deletedAt: null },
+      include: {
+        roles: { include: { role: true } },
+        site: true
+      }
+    });
 
-  return users.map(u => this.mapToUser(u));
-}
-
-
+    return users.map((u) => this.mapToUser(u));
+  }
 
   async delete(id: number): Promise<void> {
     await prisma.user.update({
@@ -99,36 +130,42 @@ async findAll(skip: number, take: number): Promise<User[]> {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 🔐 Vérifier si ADMIN
-    let isAdmin = false;
+    let effectiveRoleIds = roleIds ?? [];
 
-    if (roleIds?.length) {
-      const roles = await prisma.role.findMany({
-        where: { id: { in: roleIds } },
-        select: { name: true }
+    if (effectiveRoleIds.length === 0) {
+      const employeeRole = await prisma.role.upsert({
+        where: { name: 'EMPLOYE' },
+        update: {},
+        create: { name: 'EMPLOYE' },
       });
 
-      isAdmin = roles.some(r => r.name === 'ADMIN');
+      effectiveRoleIds = [employeeRole.id];
     }
 
-    // 🔒 RÈGLE MÉTIER
-    if (!isAdmin && !siteId) {
-      throw new Error("Un utilisateur non admin doit appartenir à un site");
+    const roles = await prisma.role.findMany({
+      where: { id: { in: effectiveRoleIds } },
+      select: { name: true }
+    });
+
+    const isAdmin = roles.some((r) => r.name === 'ADMIN');
+
+    if (!isAdmin && effectiveRoleIds.length > 0 && siteId !== undefined && siteId === null) {
+      throw new Error('Un utilisateur non admin doit appartenir à un site');
     }
 
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
           ...rest,
-          siteId: isAdmin ? null : siteId, // 🔐 ADMIN = null
+          siteId: isAdmin ? null : siteId ?? null,
           isActive: rest.isActive ?? true,
           passwordHash
         }
       });
 
-      if (roleIds?.length) {
+      if (effectiveRoleIds.length > 0) {
         await tx.userRole.createMany({
-          data: roleIds.map(roleId => ({
+          data: effectiveRoleIds.map((roleId) => ({
             userId: createdUser.id,
             roleId
           }))
@@ -153,50 +190,79 @@ async findAll(skip: number, take: number): Promise<User[]> {
     const user = await prisma.user.findFirst({
       where: { username, deletedAt: null },
       include: {
-        roles: { include: { role: true } }
+        roles: { include: { role: true } },
+        site: true
       }
     });
 
     return user ? this.mapToUser(user) : null;
   }
 
-async findAuthUserByUsername(username: string): Promise<AuthUser | null> {
-  return prisma.user.findUnique({
-    where: { username },
-    select: {
-      id: true,
-      username: true,
-      passwordHash: true,
-      isActive: true,
-      siteId: true, // ✅ ajout essentiel
-      roles: {
-        select: {
-          role: {
-            select: {
-              name: true
+  async findByEmail(email: string): Promise<User | null> {
+    const user = await prisma.user.findFirst({
+      where: { email, deletedAt: null },
+      include: {
+        roles: { include: { role: true } },
+        site: true
+      }
+    });
+
+    return user ? this.mapToUser(user) : null;
+  }
+
+  async findByMatricule(matricule: string): Promise<User | null> {
+    const user = await prisma.user.findFirst({
+      where: { matricule, deletedAt: null },
+      include: {
+        roles: { include: { role: true } },
+        site: true
+      }
+    });
+
+    return user ? this.mapToUser(user) : null;
+  }
+
+  async findAuthUserByUsername(username: string): Promise<AuthUser | null> {
+    return prisma.user.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        username: true,
+        passwordHash: true,
+        isActive: true,
+        siteId: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true
+              }
             }
           }
         }
       }
-    }
-  });
-}
+    });
+  }
 
-  /**
-   * 🔁 Mapping Prisma → User métier
-   */
   private mapToUser(prismaUser: any): User {
     return {
       id: prismaUser.id,
       username: prismaUser.username,
+      matricule: prismaUser.matricule ?? null,
+      email: prismaUser.email ?? null,
+      firstName: prismaUser.firstName ?? null,
+      lastName: prismaUser.lastName ?? null,
       isActive: prismaUser.isActive,
-      siteId: prismaUser.siteId ?? null, // ✅ AJOUT
+      siteId: prismaUser.siteId ?? null,
       site: prismaUser.site
         ? {
             id: prismaUser.site.id,
             name: prismaUser.site.name
           }
         : null,
+      // Ajout du mapping pour reset password
+      resetPasswordToken: prismaUser.resetPasswordToken ?? null,
+      resetPasswordExpires: prismaUser.resetPasswordExpires ?? null,
       createdAt: prismaUser.createdAt,
       updatedAt: prismaUser.updatedAt,
       deletedAt: prismaUser.deletedAt,
