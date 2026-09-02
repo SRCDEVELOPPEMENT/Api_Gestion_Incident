@@ -7,71 +7,54 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////
-// AUTH / SECURITY //
-//////////////////////
-
 model User {
-  id           Int       @id @default(autoincrement())
-  username     String    @unique
-  matricule    String?
-  email        String?
-  firstName    String?
-  lastName     String?
-  passwordHash String
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  deletedAt    DateTime? // âœ… AJOUT ICI
-  updatedAt    DateTime  @updatedAt
-
-  // ðŸ” APPARTENANCE MÃ‰TIER
-  siteId Int?
-  site   Site? @relation("UserSite", fields: [siteId], references: [id])
-
-  roles         UserRole[]
-  refreshTokens RefreshToken[]
-
-  categories  Category[]
-  processes   Process[]
-  tasks       Task[]
-  subCategory SubCategory[]
-  subProcess  SubProcess[]
-
-  createdIncidents  Incident[]        @relation("IncidentCreator")
-  reportedIncidents Incident[]        @relation("IncidentReporter")
-  // âœ… renommÃ©
-  typesCreated      Type[]            @relation("TypeCreatedBy")
-  incidentComments  IncidentComment[]
-
-  // ðŸ”¹ Sites crÃ©Ã©s (optionnel mais propre)
-  createdSites Site[] @relation("SiteCreator")
-
-  // Reset password
-  resetPasswordToken   String?
+  id                   Int               @id @default(autoincrement())
+  username             String            @unique
+  passwordHash         String
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  deletedAt            DateTime?
+  updatedAt            DateTime          @updatedAt
+  siteId               Int?
+  matricule            String?           @db.NVarChar(4000)
+  email                String?           @db.NVarChar(4000)
+  firstName            String?           @db.NVarChar(4000)
+  lastName             String?           @db.NVarChar(4000)
+  resetPasswordToken   String?           @db.NVarChar(4000)
   resetPasswordExpires DateTime?
+  categories           Category[]
+  reportedIncidents    Incident[]        @relation("IncidentReporter")
+  createdIncidents     Incident[]        @relation("IncidentCreator")
+  incidentComments     IncidentComment[]
+  processes            Process[]
+  refreshTokens        RefreshToken[]
+  createdSites         Site[]            @relation("SiteCreator")
+  subCategory          SubCategory[]
+  subProcess           SubProcess[]
+  tasks                Task[]
+  typesCreated         Type[]            @relation("TypeCreatedBy")
+  site                 Site?             @relation("UserSite", fields: [siteId], references: [id])
+  roles                UserRole[]
 }
 
 model Role {
-  id   Int    @id @default(autoincrement())
-  name String @unique
-
-  users       UserRole[]
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
   permissions RolePermission[]
+  users       UserRole[]
 }
 
 model Permission {
-  id   Int    @id @default(autoincrement())
-  code String @unique
-
+  id    Int              @id @default(autoincrement())
+  code  String           @unique
   roles RolePermission[]
 }
 
 model UserRole {
   userId Int
   roleId Int
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([userId, roleId])
 }
@@ -79,9 +62,8 @@ model UserRole {
 model RolePermission {
   roleId       Int
   permissionId Int
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([roleId, permissionId])
 }
@@ -93,35 +75,24 @@ model RefreshToken {
   expiresAt DateTime
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
 }
 
-//////////////
-// DOMAIN  //
-//////////////
-
 model Site {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  createdByUserId Int
-  createdBy       User  @relation("SiteCreator", fields: [createdByUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  // âœ… Site prend l'ID de type
-  typeId          Int?
-  type            Type? @relation(fields: [typeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  // ðŸ”¹ Utilisateurs appartenant au site
-  users User[] @relation("UserSite")
-
-  incidentSites     IncidentSite[]
+  id                Int                    @id @default(autoincrement())
+  name              String
+  createdByUserId   Int
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+  typeId            Int?
   impactedIncidents IncidentImpactedSite[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  incidentSites     IncidentSite[]
+  createdBy         User                   @relation("SiteCreator", fields: [createdByUserId], references: [id], onUpdate: NoAction)
+  type              Type?                  @relation(fields: [typeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users             User[]                 @relation("UserSite")
 
   @@index([typeId])
 }
@@ -133,122 +104,105 @@ model Type {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
-
-  createdBy User @relation("TypeCreatedBy", fields: [createdByUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  // âœ… back relation
-  sites Site[]
+  sites           Site[]
+  createdBy       User      @relation("TypeCreatedBy", fields: [createdByUserId], references: [id], onUpdate: NoAction)
 }
 
 model Category {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
+  id            Int           @id @default(autoincrement())
+  name          String
+  userId        Int
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+  user          User          @relation(fields: [userId], references: [id], onUpdate: NoAction)
+  incidents     Incident[]
   subCategories SubCategory[]
-  incidents     Incident[] // âœ… AJOUT ICI
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
 }
 
 model SubCategory {
-  id          Int     @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
   description String?
-
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  incidents Incident[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  categoryId  Int
+  userId      Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  incidents   Incident[]
+  category    Category   @relation(fields: [categoryId], references: [id], onUpdate: NoAction)
+  user        User       @relation(fields: [userId], references: [id], onUpdate: NoAction)
 
   @@index([categoryId])
 }
 
 model Process {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
+  id           Int          @id @default(autoincrement())
+  name         String
+  userId       Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+  incidents    Incident[]
+  user         User         @relation(fields: [userId], references: [id], onUpdate: NoAction)
   subProcesses SubProcess[]
-  incidents    Incident[] // âœ… AJOUT ICI
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
 }
 
 model SubProcess {
-  id          Int     @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   name        String
   description String?
-
-  processId Int
-  process   Process @relation(fields: [processId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  incidents Incident[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  processId   Int
+  userId      Int
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  incidents   Incident[]
+  process     Process    @relation(fields: [processId], references: [id], onUpdate: NoAction)
+  user        User       @relation(fields: [userId], references: [id], onUpdate: NoAction)
 
   @@index([processId])
 }
 
 model Incident {
-  id               Int      @id @default(autoincrement())
-  reference        String   @unique
-  description      String
-  scope            String
-  status           String   @default("OPEN")
-  urgency          String
-  criticality      String
-  otherSubCategory String?
-  reporterName     String // âœ… nouveau : nom du dÃ©clarant (mÃ©tier)
-  glpiTicketId     Int?
-  dueDate          DateTime
-
-  userId Int
-  user   User @relation("IncidentCreator", fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  reporterId Int
-  reporter   User @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  subProcessId Int?
-  subProcess   SubProcess? @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  subCategoryId Int?
-  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  processDomainId Int?
-  processDomain   Process? @relation(fields: [processDomainId], references: [id])
-
-  tasks                 Task[]
-  incidentSites         IncidentSite[]
-  incidentImpactedSites IncidentImpactedSite[] // âœ… OBLIGATOIRE
-  incidentPersonnes     IncidentPersonne[]
+  id                    Int                    @id @default(autoincrement())
+  reference             String                 @unique
+  description           String                 @db.NVarChar(Max)
+  scope                 String
+  status                String                 @default("OPEN")
+  urgency               String
+  criticality           String
+  otherSubCategory      String?
+  reporterName          String
+  glpiTicketId          Int?
+  dueDate               DateTime
+  userId                Int
+  reporterId            Int
+  subProcessId          Int?
+  categoryId            Int
+  subCategoryId         Int?
+  processDomainId       Int?
+  rootCause             String?                 @db.NVarChar(Max)
+  proposedSolution      String?                 @db.NVarChar(Max)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  takenInChargeAt       DateTime?
+  resolvedAt            DateTime?
   attachments           Attachment[]
-  comments              IncidentComment[] // âœ… liste des commentaires
+  category              Category               @relation(fields: [categoryId], references: [id])
+  processDomain         Process?               @relation(fields: [processDomainId], references: [id])
+  reporter              User                   @relation("IncidentReporter", fields: [reporterId], references: [id], onUpdate: NoAction)
+  subCategory           SubCategory?           @relation(fields: [subCategoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subProcess            SubProcess?            @relation(fields: [subProcessId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user                  User                   @relation("IncidentCreator", fields: [userId], references: [id], onUpdate: NoAction)
+  comments              IncidentComment[]
+  incidentImpactedSites IncidentImpactedSite[]
+  incidentPersonnes     IncidentPersonne[]
+  incidentSites         IncidentSite[]
+  tasks                 Task[]
+  incidentGLPIUser             IncidentGLPIUser[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
 
   @@index([userId])
   @@index([reporterId])
@@ -261,62 +215,52 @@ model Incident {
 model IncidentComment {
   id         Int      @id @default(autoincrement())
   incidentId Int
+  userId     Int
+  content    String
+  createdAt  DateTime @default(now())
   incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
-
-  content   String
-  createdAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
 }
 
 model Personne {
-  id       Int    @id @default(autoincrement())
-  fullname String @unique
-
-  incidents IncidentPersonne[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int                @id @default(autoincrement())
+  fullname  String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
   deletedAt DateTime?
+  incidents IncidentPersonne[]
 
   @@index([fullname])
 }
 
 model Task {
-  id          Int       @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   name        String
   description String?
-  status      String    @default("OPEN")
+  status      String       @default("OPEN")
   dueDate     DateTime?
   userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  incidentId Int
-  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
+  incidentId  Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
   attachments Attachment[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  incident    Incident     @relation(fields: [incidentId], references: [id], onUpdate: NoAction)
+  user        User         @relation(fields: [userId], references: [id], onUpdate: NoAction)
 
   @@index([userId])
   @@index([incidentId])
 }
 
 model Attachment {
-  id       Int    @id @default(autoincrement())
-  fileName String
-  url      String
-
+  id         Int       @id @default(autoincrement())
+  fileName   String
+  url        String
   incidentId Int?
+  taskId     Int?
+  uploadedAt DateTime  @default(now())
   incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  taskId Int?
-  task   Task? @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  uploadedAt DateTime @default(now())
+  task       Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([incidentId])
   @@index([taskId])
@@ -325,9 +269,8 @@ model Attachment {
 model IncidentSite {
   incidentId Int
   siteId     Int
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, siteId])
 }
@@ -335,9 +278,8 @@ model IncidentSite {
 model IncidentImpactedSite {
   incidentId Int
   siteId     Int
-
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, siteId])
 }
@@ -345,14 +287,83 @@ model IncidentImpactedSite {
 model IncidentPersonne {
   incidentId Int
   personneId Int
+  assignedAt DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  personne   Personne @relation(fields: [personneId], references: [id], onDelete: Cascade)
 
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  personne Personne @relation(fields: [personneId], references: [id], onDelete: Cascade)
-
-  assignedAt DateTime @default(now()) // optionnel mais recommandÃ©
-
-  @@id([incidentId, personneId]) // clÃ© primaire composite
+  @@id([incidentId, personneId])
   @@index([personneId])
 }
 
+/// ================= INTÉGRATION GLPI =================
+model GLPIUser {
+  id                 Int      @id @default(autoincrement())
+  glpiId             Int
+  login              String?  @db.NVarChar(255)
+  email              String?  @db.NVarChar(255)
+  firstName          String?  @db.NVarChar(4000)
+  lastName           String?  @db.NVarChar(4000)
+  fullName           String?  @db.NVarChar(4000)
+  phone              String?  @db.NVarChar(255)
+  status             String   @default("ACTIVE") @db.NVarChar(100)
+  isDeletedInSource  Boolean  @default(false)
+  sourceUpdatedAt    DateTime?
+  lastSyncedAt       DateTime?
+  syncStatus         String   @default("SYNCED") @db.NVarChar(100)
+  rawPayload         String?  @db.NVarChar(4000)
+  incidentGLPIUser   IncidentGLPIUser[]
 
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([glpiId])
+  @@index([email])
+  @@index([login])
+  @@index([status])
+}
+
+model GLPITicket {
+  id                 Int      @id @default(autoincrement())
+  glpiId             Int
+  ticketNumber       String?  @db.NVarChar(255)
+  title              String   @db.NVarChar(4000)
+  description        String?  @db.NVarChar(4000)
+  ticketType         String?  @db.NVarChar(100)
+  status             String   @default("OPEN") @db.NVarChar(100)
+  priority           String?  @db.NVarChar(100)
+  urgency            String?  @db.NVarChar(100)
+  impact             String?  @db.NVarChar(100)
+  categoryName       String?  @db.NVarChar(4000)
+  entityName         String?  @db.NVarChar(4000)
+  locationName       String?  @db.NVarChar(4000)
+  requesterName      String?  @db.NVarChar(4000)
+  assigneeName       String?  @db.NVarChar(4000)
+  openedAt           DateTime?
+  dueAt              DateTime?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  sourceUpdatedAt    DateTime?
+  lastSyncedAt       DateTime?
+  syncStatus         String   @default("SYNCED") @db.NVarChar(100)
+  rawPayload         String?  @db.NVarChar(4000)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([glpiId])
+  @@index([ticketNumber])
+  @@index([status])
+}
+
+/// ================= RELATION INCIDENT - GLPIUSER =================
+model IncidentGLPIUser {
+  incidentId Int
+  glpiUserId Int
+  assignedAt DateTime @default(now())
+
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  glpiUser   GLPIUser @relation(fields: [glpiUserId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, glpiUserId])
+  @@index([glpiUserId])
+}

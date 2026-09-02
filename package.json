@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.0",
     "multer": "^2.0.2",
     "mysql2": "^3.17.4",
+    "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
     "playwright": "^1.58.2",
     "puppeteer": "^24.37.1",

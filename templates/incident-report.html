@@ -86,6 +86,18 @@
     min-height: 18px;
   }
 
+  .tasks-table th {
+    border: 1px solid #000;
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 12px;
+    background-color: #f2f2f2;
+  }
+
+  .tasks-table td {
+    font-size: 11px;
+  }
+
   /* ===========================
      NOTE IMPORTANTE
   ============================ */
@@ -183,14 +195,24 @@
     NB : Les incidents reliés au budget doivent être signés par le responsable du service contrôle de gestion.
   </p>
 
+
   <p class="section-title">Déclaration de l’incident (Description)</p>
   <p>{{description}}</p>
+
+  <p class="section-title">Cause racine (le cas échéant)</p>
+  <p>{{rootCause}}</p>
+
+  <p class="section-title">Solution proposée (le cas échéant)</p>
+  <p>{{proposedSolution}}</p>
 
   <!-- <p class="section-title">Cause probable</p>
   <p>{{cause}}</p> -->
 
   <p class="section-title">Périmètre</p>
   <p>{{scope}}</p>
+
+  <p class="section-title">Tâches qui ont étés faites pour resoudre l’incident</p>
+  {{tasks}}
 
   <!-- <p class="section-title">Détail des travaux réalisés / Actions menées</p>
   <p>{{actions}}</p> -->

@@ -109,6 +109,7 @@ export class PrismaUserRepository implements IUserRepository {
       skip,
       take,
       where: { deletedAt: null },
+      orderBy: { id: 'desc' }, // Tri décroissant par ID
       include: {
         roles: { include: { role: true } },
         site: true

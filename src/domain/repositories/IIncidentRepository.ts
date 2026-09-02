@@ -53,4 +53,16 @@ close(
   isAdmin: boolean,
   comment: string
 ): Promise<Incident>;
+
+  /**
+   * 🔓 Rouvre un incident
+   * - Change le statut en OPEN
+   * - Enregistre la date de réouverture
+   * - Enregistre l'utilisateur qui rouvre
+   */
+  reopen(
+    id: string,
+    userId: number,
+    isAdmin: boolean
+  ): Promise<Incident>;
 }

@@ -6,6 +6,7 @@ import {
   UpdateIncidentUseCase,
   DeleteIncidentUseCase,
   CloseIncidentUseCase, // ✅ AJOUT
+  ReopenIncidentUseCase,
 } from '../../../application/usecases/IncidentUseCases';
 import { PrismaIncidentRepository } from '../../../infrastructure/repositories/PrismaIncidentRepository';
 import { z } from 'zod';
@@ -21,6 +22,13 @@ import { IncidentQuerySchema } from "../../../presentation/http/schemas/Incident
 import { buildIncidentWhere } from "../../../presentation/http/mappers/incidentFilterMapper";
 
 const incidentSchema = z.object({
+    glpiUserIds: z.preprocess(
+      (val) => {
+        if (!val) return [];
+        return Array.isArray(val) ? val : [val];
+      },
+      z.array(z.coerce.number()).optional()
+    ),
   reporterName: z.string().min(2, "Nom du déclarant obligatoire"), // ✅ AJOUT
   description: z.string().min(5),
   // ✅ AJOUT
@@ -57,6 +65,8 @@ const incidentSchema = z.object({
   urgency: z.enum(['Faible', 'Moyenne', 'Haute', 'Immédiate']),
   criticality: z.enum(['Faible', 'Moyenne', 'Haute', 'Critique']),
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'CANCELLED']).optional(),
+  rootCause: z.string().optional(),
+  proposedSolution: z.string().optional(),
 });
 
 const closeSchema = z
@@ -102,6 +112,48 @@ function hasRole(user: any, roleName: string): boolean {
 
 
 export class IncidentController {
+
+  static async reopen(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authUser = (req as any).user as AuthUser | undefined;
+      if (!authUser?.id) return res.status(401).json({ message: "Unauthorized" });
+
+      const isAdmin = hasAdminLikeAccess(authUser);
+      const userId = Number(authUser.id);
+
+      const repo = new PrismaIncidentRepository();
+      const useCase = new ReopenIncidentUseCase(repo);
+
+      const incident = await useCase.execute({
+        id: req.params.id,
+        userId,
+        isAdmin,
+      });
+
+      return res.json(incident);
+    } catch (error: any) {
+      if (error?.name === "ZodError") {
+        return res.status(400).json({
+          message: "Bad Request",
+          error: error.issues?.[0]?.message ?? "Payload invalide",
+          issues: error.issues,
+        });
+      }
+
+      console.error("REOPEN INCIDENT ERROR:", {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        stack: error?.stack,
+      });
+
+      return res.status(500).json({
+        message: "Internal Server Error",
+        error: error?.message,
+        code: error?.code,
+      });
+    }
+  }
 
   static async create(
     req: Request,
@@ -375,18 +427,52 @@ export class IncidentController {
           ? incident.impactedSites.map((s: any) => s?.name ?? s?.site?.name).filter(Boolean).join(", ")
           : "—";
 
+
+      // Combine personnes et glpiUsers dans la même liste
+      const personnesArray = [];
+      if (Array.isArray(incident.personnes) && incident.personnes.length) {
+        personnesArray.push(...incident.personnes.map((p: any) => p?.fullname ?? p?.name ?? ""));
+      }
+      if (Array.isArray(incident.glpiUsers) && incident.glpiUsers.length) {
+        personnesArray.push(...incident.glpiUsers.map((u: any) => u?.fullname || u?.fullName || u?.login || "Utilisateur GLPI"));
+      }
       const personnesList =
-        Array.isArray(incident.personnes) && incident.personnes.length
-          ? `<ul>${incident.personnes
-            .map((p: any) => `<li>${escapeHtml(p?.fullname ?? p?.name ?? "")}</li>`)
-            .join("")}</ul>`
+        personnesArray.length > 0
+          ? `<ul>${personnesArray.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>`
           : "—";
 
       const createdAt = incident.createdAt ? new Date(incident.createdAt).toISOString().slice(0, 10) : "—";
       const dueDate = incident.dueDate ? new Date(incident.dueDate).toISOString().slice(0, 10) : "—";
+      const formatDate = (value: any) => value ? new Date(value).toISOString().slice(0, 10) : "—";
 
       const glpiTicketNumber =
         incident.glpiTicketId ? String(incident.glpiTicketId) : "—";
+
+      const tasksHtml =
+        Array.isArray(incident.tasks) && incident.tasks.length
+          ? `<table class="tasks-table">
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Description</th>
+                  <th>Statut</th>
+                  <th>Échéance</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${incident.tasks
+                  .map((task: any) => `
+                    <tr>
+                      <td>${escapeHtml(task.name ?? "—")}</td>
+                      <td>${escapeHtml(task.description ?? "—")}</td>
+                      <td>${escapeHtml(task.status ?? "—")}</td>
+                      <td>${escapeHtml(dueDate)}</td>
+                    </tr>
+                  `)
+                  .join("")}
+              </tbody>
+            </table>`
+          : "AUCUNE TACHE DE RESOLUTION DEFINIS POUR CET INCIDENT";
 
       const html = template
         .replace("{{reference}}", escapeHtml(incident.reference))
@@ -403,8 +489,11 @@ export class IncidentController {
         .replace("{{process}}", escapeHtml(incident.processDomain ?? "—"))
         .replace("{{cause}}", escapeHtml(incident.subCategory ?? "—"))
         .replace("{{description}}", escapeHtml(incident.description ?? "—"))
+        .replace("{{rootCause}}", escapeHtml(incident.rootCause ?? "—"))
+        .replace("{{proposedSolution}}", escapeHtml(incident.proposedSolution ?? "—"))
         .replace("{{personnes}}", personnesList)
         .replace("{{scope}}", escapeHtml(incident.scope ?? "—"))
+        .replace("{{tasks}}", tasksHtml)
         .replace("{{actions}}", "—")
         .replace("{{proposal}}", "—")
         .replace("{{observation}}", "—")
@@ -439,7 +528,7 @@ export class IncidentController {
     return res.download(filePath, attachment.fileName);
   }
 
-  static async getStatusStats(req: any, res: any) {
+    static async getStatusStats(req: any, res: any) {
     try {
 
       const authUser = req.user;
@@ -477,6 +566,201 @@ export class IncidentController {
     } catch (error) {
       console.error(error);
       res.status(500).json({ message: 'Erreur récupération stats' });
+    }
+  }
+
+    static async getTrend(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      const incidentService = new IncidentService();
+
+      const trend = await incidentService.getTrend7Days({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+      });
+
+      res.json(trend);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération tendance 7 jours' });
+    }
+  }
+
+  static async getByService(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      const incidentService = new IncidentService();
+
+      const data = await incidentService.getByService({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+      });
+
+      res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération stats par service' });
+    }
+  }
+
+  static async getByPriority(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      const incidentService = new IncidentService();
+
+      const data = await incidentService.getByPriority({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+      });
+
+      res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération stats par priorité' });
+    }
+  }
+
+    static async getOverdue(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      const incidentService = new IncidentService();
+
+      const count = await incidentService.getOverdue({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+      });
+
+      res.json({ count });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération stats retard' });
+    }
+  }
+
+  static async getDailyActivity(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      const incidentService = new IncidentService();
+
+      const data = await incidentService.getDailyActivity({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+      });
+
+      res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération activité journalière' });
     }
   }
 
@@ -637,8 +921,10 @@ export class IncidentController {
           return `
             <tr>
               <td>${escapeHtml(inc.reference)}</td>
-              <td>${escapeHtml(glpiTicketNumber)}</td>  <!-- ✅ AJOUT -->
+              <td>${escapeHtml(glpiTicketNumber)}</td>
               <td>${escapeHtml(inc.description)}</td>
+              <td>${escapeHtml(inc.rootCause ?? "—")}</td>
+              <td>${escapeHtml(inc.proposedSolution ?? "—")}</td>
               <td>${escapeHtml(inc.status)}</td>
               <td>${escapeHtml(inc.urgency)}</td>
               <td>${escapeHtml(inc.serviceEmitter ?? "—")}</td>
@@ -711,11 +997,13 @@ export class IncidentController {
       const sep = ";";
       const header = [
         "Référence",
+        "Ticket GLPI",
         "Description",
+        "Cause racine",
+        "Solution proposée",
         "Statut",
         "Priorité",
-        "Déclarant", // ✅ ajouté ici
-        "Ticket GLPI", // ✅ AJOUT
+        "Déclarant",
         "Service émetteur",
         "Service traitant (sites)",
         "Créé le",
@@ -745,11 +1033,13 @@ export class IncidentController {
 
           return [
             inc.reference,
+            glpiTicketNumber,
             inc.description,
+            inc.rootCause ?? "",
+            inc.proposedSolution ?? "",
             inc.status,
             inc.urgency,
-            inc.reporterName, // ✅ ajouté ici
-            glpiTicketNumber,
+            inc.reporterName,
             inc.serviceEmitter ?? "",
             sites,
             createdAt,
@@ -821,11 +1111,60 @@ export class IncidentController {
         stack: error?.stack,
       });
 
-      return res.status(500).json({
+            return res.status(500).json({
         message: "Internal Server Error",
         error: error?.message,
         code: error?.code,
       });
+    }
+  }
+
+    static async getByCategoryProcess(req: any, res: any) {
+    try {
+      const authUser = req.user;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        include: {
+          roles: {
+            include: {
+              role: true
+            }
+          }
+        }
+      });
+
+      if (!dbUser) {
+        return res.status(404).json({ message: "Utilisateur introuvable" });
+      }
+
+      const roles = dbUser.roles
+        .map(r => r.role?.name)
+        .filter(Boolean)
+        .map((name: string) => name.toUpperCase());
+
+      // ✅ Lecture du paramètre dateFrom (timestamp ISO passé en query string)
+      let dateFrom: Date | undefined;
+      if (req.query.dateFrom) {
+        const parsed = new Date(req.query.dateFrom);
+        if (!isNaN(parsed.getTime())) {
+          dateFrom = parsed;
+        }
+      }
+
+      const incidentService = new IncidentService();
+
+      const data = await incidentService.getByCategoryProcess({
+        id: dbUser.id,
+        roles: roles,
+        siteId: dbUser.siteId ?? undefined,
+        dateFrom,
+      });
+
+      res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Erreur récupération stats par catégorie/processus' });
     }
   }
 }

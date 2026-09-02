@@ -41,9 +41,13 @@ export interface Incident {
   processDomain?: string | null;
   personnes?: Personne[];
   attachments?: Attachment[];
+  rootCause?: string | null;
+  proposedSolution?: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
+  // Premium: assigned GLPI users (array of GLPIUser objects)
+  glpiUsers?: any[];
 }
 
 export type CreateIncidentDTO = {
@@ -65,6 +69,10 @@ export type CreateIncidentDTO = {
   scope: string;
   urgency: 'Faible' | 'Moyenne' | 'Haute' | 'Immédiate';
   criticality: 'Faible' | 'Moyenne' | 'Haute' | 'Critique';
+  rootCause?: string;
+  proposedSolution?: string;
+  // Premium: utilisateurs GLPI assignés
+  glpiUserIds?: number[];
 };
 
 export type UpdateIncidentDTO = Partial<{
@@ -90,4 +98,6 @@ export type UpdateIncidentDTO = Partial<{
     fileName: string;
     url: string;
   }[];
+  rootCause?: string;
+  proposedSolution?: string;
 }>;

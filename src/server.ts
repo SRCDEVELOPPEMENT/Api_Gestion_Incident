@@ -1,7 +1,10 @@
+// ⚠️ DOIT rester en PREMIER import : corrige le dossier temporaire cassé
+// (%TEMP%) qui fait échouer Playwright/Chromium lors des exports PDF.
+import './bootstrap/safeTmpdir.bootstrap';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 
 import incidentRoutes from './interfaces/http/routes/incidentRoutes';
 import authRoutes from './interfaces/http/routes/authRoutes';
@@ -25,26 +28,14 @@ import permissionRoutes from './interfaces/http/routes/permissionRoutes';
 import settingsRoutes from './interfaces/http/routes/settingsRoutes';
 import personneRoutes from './interfaces/http/routes/personneRoutes';
 import glpiRoutes from './interfaces/http/routes/glpiRoutes';
+import glpiUserRoutes from './interfaces/http/routes/glpiUserRoutes';
+import glpiTicketRoutes from './interfaces/http/routes/glpiTicketRoutes';
 import incidentCommentRoutes from './interfaces/http/routes/incidentCommentRoutes';
-
-dotenv.config();
+import reportRoutes from './interfaces/http/routes/reportRoutes';
+import { startGlpiSyncCron } from './cron/glpiSync.cron';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-
-// async function startServer() {
-//   // ✅ ICI EXACTEMENT
-//   await bootstrapAdmin();
-
-//   app.listen(PORT, () => {
-//     console.log(`Server running on port ${PORT}`);
-//   });
-// }
-
-// startServer().catch((err) => {
-//   console.error('Failed to start server', err);
-//   process.exit(1);
-// });
 
 /* -------------------------------------------------- */
 /* 1. Sécurité & infra                                */
@@ -98,6 +89,8 @@ app.use('/api/v1/types', typeRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/processes', processRoutes);
+app.use('/api/v1/glpi-users', glpiUserRoutes);
+app.use('/api/v1/glpi-tickets', glpiTicketRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/sub-categories', subCategoryRoutes);
 app.use('/api/v1/sub-processes', subProcessRoutes);
@@ -107,6 +100,7 @@ app.use('/settings', settingsRoutes);
 app.use('/api/v1/personnes', personneRoutes);
 app.use("/api/v1/glpi", glpiRoutes);
 app.use("/api/v1/incident-comments", incidentCommentRoutes);
+app.use('/api/v1/reports', reportRoutes);
 
 /* -------------------------------------------------- */
 /* 5. 404 & erreurs                                   */
@@ -127,6 +121,14 @@ app.use(errorHandler as any);
 /* 6. Start                                           */
 /* -------------------------------------------------- */
 
-app.listen(PORT, () => {
+
+// --------------------------------------------------
+// 7. CRON GLPI SYNC
+// --------------------------------------------------
+startGlpiSyncCron();
+
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  // ✅ ICI EXACTEMENT
+  // await bootstrapAdmin();
 });

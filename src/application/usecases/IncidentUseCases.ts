@@ -194,3 +194,35 @@ export class CloseIncidentUseCase {
     return this.repo.close(id, userId, isAdmin, trimmed);
   }
 }
+
+export class ReopenIncidentUseCase {
+  constructor(private readonly repo: IIncidentRepository) {}
+
+  async execute(params: {
+    id: string;
+    userId: number;
+    isAdmin: boolean;
+  }): Promise<Incident> {
+    const { id, userId, isAdmin } = params;
+
+    // 1) Sécurité minimale
+    if (!userId || !Number.isFinite(userId)) {
+      throw new BadRequestError("Utilisateur non authentifié");
+    }
+
+    // 2) Charger l'incident avec la même règle de sécurité
+    const incident = await this.repo.findById(id, userId, isAdmin);
+    if (!incident) {
+      throw new BadRequestError("Incident introuvable");
+    }
+
+    // 3) Règles métier
+    const status = String((incident as any).status ?? "").toUpperCase();
+    if (status !== "CLOSED" && status !== "CANCELLED") {
+      throw new BadRequestError("Seuls les incidents clôturés ou annulés peuvent être rouverts");
+    }
+
+    // 4) Persistance (appel avec la BONNE signature)
+    return this.repo.reopen(id, userId, isAdmin);
+  }
+}

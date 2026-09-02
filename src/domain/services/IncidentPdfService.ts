@@ -1,9 +1,26 @@
+import fs from "fs";
+import path from "path";
 import { chromium } from "playwright";
+import { ensureSafeTmpdir, getSafeTmpdir } from "../../bootstrap/safeTmpdir.bootstrap";
+
+// Idempotent : garantit un dossier temporaire local sûr même si ce service
+// est importé hors du flux normal de server.ts (tests, script isolé...).
+ensureSafeTmpdir();
 
 export class IncidentPdfService {
   static async generateBuffer(html: string): Promise<Buffer> {
+    const tmpBase = getSafeTmpdir();
+    const artifactsDir = fs.mkdtempSync(path.join(tmpBase, "artifacts-"));
+
     const browser = await chromium.launch({
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      artifactsDir,
+      env: {
+        ...process.env,
+        TEMP: tmpBase,
+        TMP: tmpBase,
+        TMPDIR: tmpBase,
+      },
     });
 
     try {
@@ -19,6 +36,8 @@ export class IncidentPdfService {
       return Buffer.from(pdf);
     } finally {
       await browser.close().catch(() => {});
+      // Nettoyage des dossiers temporaires locaux (le dossier de base est réutilisé)
+      fs.rmSync(artifactsDir, { recursive: true, force: true });
     }
   }
 }

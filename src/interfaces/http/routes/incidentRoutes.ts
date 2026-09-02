@@ -1,3 +1,4 @@
+import { IncidentGLPIUserController } from '../controllers/IncidentGLPIUserController';
 import { Router } from 'express';
 import { IncidentController } from '../controllers/IncidentController';
 import { authenticate, requireRole } from '../middlewares/authMiddleware';
@@ -75,6 +76,42 @@ router.get(
   IncidentController.getStatusStats
 );
 
+router.get(
+  '/stats/trend',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getTrend
+);
+
+router.get(
+  '/stats/by-service',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getByService
+);
+
+router.get(
+  '/stats/priority',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getByPriority
+);
+
+router.get(
+  '/stats/overdue',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getOverdue
+);
+
+router.get(
+  '/stats/daily-activity',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getDailyActivity
+);
+
+router.get(
+  '/stats/by-category-process',
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.getByCategoryProcess
+);
+
 router.post(
   "/export/pdf",
   requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
@@ -96,5 +133,9 @@ router.post(
 router.put("/:id/close",
   requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
 IncidentController.close);
+
+router.put("/:id/reopen",
+  requireRole("ADMIN", "EMPLOYE", "MANAGER", "CONTROLEUR"),
+  IncidentController.reopen);
 
 export default router;
